@@ -65,12 +65,13 @@ function netbird_carp_check_master()
 
 /**
  * Name of the WireGuard tunnel device used by NetBird.  Single point of
- * truth for all plugin scripts; NetBird names its tun device wt0.
+ * truth for all plugin scripts; configurable in the GUI, defaults to wt0.
  * @return string
  */
 function netbird_wg_iface()
 {
-    return 'wt0';
+    $iface = (string)(new \OPNsense\Netbird\Settings())->general->wireguardInterface;
+    return !empty($iface) ? $iface : 'wt0';
 }
 
 /**
@@ -142,7 +143,7 @@ function netbird_sync_filter($iface, $timeout = 15)
 function netbird_devices()
 {
     return [[
-        'pattern' => '^wt0$',
+        'pattern' => '^' . preg_quote(netbird_wg_iface(), '/') . '$',
         'configurable' => false,
         'spoofmac' => false,
         'volatile' => true,

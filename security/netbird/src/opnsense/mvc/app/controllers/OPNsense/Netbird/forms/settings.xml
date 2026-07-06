@@ -16,6 +16,12 @@
         <help>When enabled, NetBird interfaces will start on MASTER state and stop on BACKUP state.</help>
     </field>
     <field>
+        <id>settings.general.wireguardInterface</id>
+        <label>WireGuard Interface</label>
+        <type>text</type>
+        <help>Name of the WireGuard tunnel interface NetBird creates, e.g. wt0. Changing this while NetBird is running will briefly disconnect and reconnect the tunnel under the new name; any OPNsense interface assignment bound to the old device must be re-assigned manually.</help>
+    </field>
+    <field>
         <id>settings.general.wireguardPort</id>
         <label>WireGuard Port</label>
         <type>text</type>

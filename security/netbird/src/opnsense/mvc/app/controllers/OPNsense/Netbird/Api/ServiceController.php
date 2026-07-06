@@ -29,6 +29,7 @@
 namespace OPNsense\Netbird\Api;
 
 use OPNsense\Base\ApiMutableServiceControllerBase;
+use OPNsense\Core\Backend;
 
 /**
  * Class ServiceController
@@ -40,4 +41,25 @@ class ServiceController extends ApiMutableServiceControllerBase
     protected static $internalServiceEnabled = 'general.enable';
     protected static $internalServiceTemplate = 'OPNsense/Netbird';
     protected static $internalServiceName = 'netbird';
+
+    /**
+     * Sync settings into NetBird's own config.json before the base class
+     * stops/reloads/starts the service.  Settings changes are normally
+     * picked up by a debounced, asynchronous config-changed event; that is
+     * too late for a value like the WireGuard interface name, which must
+     * already be correct in config.json by the time the service restarts
+     * as part of this same request, or the daemon would come back up on
+     * the previous interface name.
+     * @return array response message
+     * @throws \Exception when configd action fails
+     * @throws \ReflectionException when model can't be instantiated
+     */
+    public function reconfigureAction()
+    {
+        if ($this->request->isPost()) {
+            (new Backend())->configdRun('netbird sync-config');
+        }
+
+        return parent::reconfigureAction();
+    }
 }

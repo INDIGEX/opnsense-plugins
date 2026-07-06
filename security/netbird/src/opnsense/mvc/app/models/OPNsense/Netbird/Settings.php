@@ -44,6 +44,7 @@ class Settings extends BaseModel
             return;
         }
 
+        $config["WgIface"] = $this->general->wireguardInterface->__toString();
         $config["WgPort"] = (int)$this->general->wireguardPort->__toString();
         $config["ServerSSHAllowed"] = $this->ssh->enable->__toString() == 1;
         $config["IpMapping"] = $this->general->ipmapping->__toString();
