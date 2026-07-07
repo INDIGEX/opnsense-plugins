@@ -2,8 +2,9 @@
     <VPN>
         <NetBird cssClass="fa fa-lock fa-fw">
             <Settings order="10" url="/ui/netbird/settings"/>
-            <Status order="20" url="/ui/netbird/status"/>
-            <LogFile order="30" VisibleName="Log File" url="/ui/diagnostics/log/core/netbird"/>
+            <Instances order="20" url="/ui/netbird/instance"/>
+            <Status order="30" url="/ui/netbird/status"/>
+            <LogFile order="40" VisibleName="Log File" url="/ui/diagnostics/log/core/netbird"/>
         </NetBird>
     </VPN>
 </menu>

@@ -1,0 +1,165 @@
+<form>
+    <field>
+        <type>header</type>
+        <label>General</label>
+    </field>
+    <field>
+        <id>instance.enabled</id>
+        <label>Enable</label>
+        <type>checkbox</type>
+        <help>Enable this NetBird instance</help>
+    </field>
+    <field>
+        <id>instance.name</id>
+        <label>Name</label>
+        <type>text</type>
+        <help>A short name to identify this instance (e.g. the client/account it connects to)</help>
+    </field>
+    <field>
+        <id>instance.enablecarp</id>
+        <label>Enable CARP Failover Support</label>
+        <type>checkbox</type>
+        <help>When enabled, this instance will start on MASTER state and stop on BACKUP state.</help>
+    </field>
+    <field>
+        <id>instance.wireguardInterface</id>
+        <label>WireGuard Interface</label>
+        <type>text</type>
+        <help>Name of the WireGuard tunnel interface NetBird creates for this instance, e.g. wt0. Must be unique across instances.</help>
+    </field>
+    <field>
+        <id>instance.wireguardPort</id>
+        <label>WireGuard Port</label>
+        <type>text</type>
+        <help>Wireguard interface listening port. Must be unique across instances.</help>
+    </field>
+    <field>
+        <id>instance.ipmapping</id>
+        <label>Force IP Mapping</label>
+        <type>text</type>
+        <hint>12.34.56.78</hint>
+        <help>Forces external IPs maps between local addresses and interfaces. You can specify a comma-separated list with the following: a single IP (12.34.56.78), IP/IP (12.34.56.78/10.0.0.1) or IP/device (12.34.56.80/em1). Leave empty for automatic mapping.</help>
+        <advanced>true</advanced>
+    </field>
+    <field>
+        <type>header</type>
+        <label>Authentication</label>
+    </field>
+    <field>
+        <id>instance.managementUrl</id>
+        <label>Management URL</label>
+        <type>text</type>
+        <help>The NetBird management server this instance connects to</help>
+    </field>
+    <field>
+        <id>instance.setupKey</id>
+        <label>Setup Key</label>
+        <type>text</type>
+        <help>Setup key used to register this instance with the management server</help>
+    </field>
+    <field>
+        <type>header</type>
+        <label>Client Firewall</label>
+    </field>
+    <field>
+        <id>instance.firewallAllowConfig</id>
+        <label>Enable Firewall</label>
+        <type>checkbox</type>
+        <help>Allow the client to filter traffic with its built-in firewall. If disabled, you must assign the NetBird interface and manage firewall rules via OPNsense firewall management.
+            Additionally, NetBird routing and DNS may not function as intended.</help>
+    </field>
+    <field>
+        <id>instance.firewallBlockInboundConnection</id>
+        <label>Block Inbound Connection</label>
+        <type>checkbox</type>
+        <help>Block all inbound connections to the local machine from the WireGuard interface and any routed networks</help>
+    </field>
+    <field>
+        <type>header</type>
+        <label>SSH</label>
+    </field>
+    <field>
+        <id>instance.sshEnable</id>
+        <label>Enable</label>
+        <type>checkbox</type>
+        <help>Allows incoming SSH connections</help>
+    </field>
+    <field>
+        <id>instance.sshEnableRoot</id>
+        <label>Enable Root Login</label>
+        <type>checkbox</type>
+        <help>Allow root user login</help>
+    </field>
+    <field>
+        <id>instance.sshEnableSFTP</id>
+        <label>Enable SFTP</label>
+        <type>checkbox</type>
+        <help>Enable SFTP subsystem for file transfers</help>
+    </field>
+    <field>
+        <id>instance.sshEnableLocalPortForwarding</id>
+        <label>Enable Local Port Forwarding</label>
+        <type>checkbox</type>
+        <help>Allow clients to forward local ports through the server</help>
+    </field>
+    <field>
+        <id>instance.sshEnableRemotePortForwarding</id>
+        <label>Enable Remote Port Forwarding</label>
+        <type>checkbox</type>
+        <help>Allow clients to request remote port forwarding</help>
+    </field>
+    <field>
+        <id>instance.sshEnableAuth</id>
+        <label>Enable SSH Authentication</label>
+        <type>checkbox</type>
+        <help>Enable JWT authentication for SSH connections. When disabled, allows any peer with network access</help>
+    </field>
+    <field>
+        <type>header</type>
+        <label>DNS</label>
+    </field>
+    <field>
+        <id>instance.dnsEnable</id>
+        <label>Enable</label>
+        <type>checkbox</type>
+        <help>Allows the client to resolve and configure DNS on the host</help>
+    </field>
+    <field>
+        <type>header</type>
+        <label>Routing</label>
+    </field>
+    <field>
+        <id>instance.routingAccessLan</id>
+        <label>Access LAN</label>
+        <type>checkbox</type>
+        <help>Allow access to local networks (LAN) when using this peer as a routing peer or exit-node</help>
+    </field>
+    <field>
+        <id>instance.routingAcceptClientRoutes</id>
+        <label>Accept Client Routes</label>
+        <type>checkbox</type>
+        <help>Accept and process client routes received from the management</help>
+    </field>
+    <field>
+        <id>instance.routingAcceptServerRoutes</id>
+        <label>Accept Server Routes</label>
+        <type>checkbox</type>
+        <help>Enable this peer to act as a router for server routes received from the management</help>
+    </field>
+    <field>
+        <type>header</type>
+        <label>Post-Quantum</label>
+    </field>
+    <field>
+        <id>instance.enableRosenpass</id>
+        <label>Enable Rosenpass</label>
+        <type>checkbox</type>
+        <help>Enable the Rosenpass to provide post-quantum secure connections (Experimental)</help>
+    </field>
+    <field>
+        <id>instance.rosenpassPermissive</id>
+        <label>Rosenpass Permissive Mode</label>
+        <type>checkbox</type>
+        <help>Enable Rosenpass permissive mode</help>
+    </field>
+</form>

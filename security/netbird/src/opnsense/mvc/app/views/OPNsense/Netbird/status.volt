@@ -3,6 +3,7 @@
  # Copyright (C) 2025 squared GmbH
  # Copyright (C) 2025 Christopher Linn, BackendMedia IT-Services GmbH
  # Copyright (C) 2025 NetBird GmbH
+ # Copyright (C) 2026 Myah Mitchell, Innovative Networks, Inc. d.b.a INDIGEX
  # All rights reserved.
  #
  # Redistribution and use in source and binary forms, with or without modification,
@@ -28,7 +29,7 @@
  #}
 
 <script>
-    $(document).ready(() =>{
+    $(document).ready(() => {
         function getElapsedTime(date) {
             if (!(date instanceof Date) || isNaN(date) || date.getMonth() === 0) return "-";
 
@@ -187,33 +188,94 @@
             }).join('\n\n');
         }
 
+        const renderPreTable = (content, maxHeight = null) => {
+            const style = `padding: 10px;${maxHeight ? ` max-height: ${maxHeight}; overflow-y: auto;` : ''}`;
+            return `
+              <table class="table table-hover table-striped table-condensed">
+                <tbody>
+                  <tr>
+                    <td><pre style="${style}">${content}</pre></td>
+                  </tr>
+                </tbody>
+              </table>
+            `;
+        };
 
-        function loadConnectionStatus() {
-            const $connStatus = $("#connStatus");
-            const $peersDetails = $("#peersDetail");
-            const $peersDetailContainer = $("#peersDetailContainer");
-
-            ajaxGet('/api/netbird/status/status', {}, (data) => {
-                const status = getPeerConnectionStatus(data);
-                const details = getPeersDetail(data);
-
+        function loadInstanceStatus(uuid) {
+            ajaxGet(`/api/netbird/status/status/${uuid}`, {}, (data) => {
                 const isConnected = data.management?.connected === true;
-                $peersDetailContainer.toggleClass("hidden", !isConnected);
-                const renderPreTable = (content, maxHeight = null) => {
-                    const style = `padding: 10px;${maxHeight ? ` max-height: ${maxHeight}; overflow-y: auto;` : ''}`;
-                    return `
-                      <table class="table table-hover table-striped table-condensed">
-                        <tbody>
-                          <tr>
-                            <td><pre style="${style}">${content}</pre></td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    `;
-                };
 
-                $connStatus.html(renderPreTable(status));
-                $peersDetails.html(renderPreTable(details, '500px'));
+                $(`#nb-badge-${uuid}`)
+                    .removeClass('label-default label-success label-warning')
+                    .addClass(isConnected ? 'label-success' : 'label-warning')
+                    .text(isConnected ? '{{ lang._("Connected") }}' : '{{ lang._("Disconnected") }}');
+
+                $(`#nb-connect-${uuid}`).toggleClass('hidden', isConnected);
+                $(`#nb-disconnect-${uuid}`).toggleClass('hidden', !isConnected);
+
+                $(`#nb-connstatus-${uuid}`).html(renderPreTable(getPeerConnectionStatus(data)));
+
+                const details = getPeersDetail(data);
+                $(`#nb-peers-container-${uuid}`).toggleClass('hidden', !isConnected);
+                $(`#nb-peers-${uuid}`).html(renderPreTable(details, '500px'));
+            });
+        }
+
+        function loadInstances() {
+            ajaxGet('/api/netbird/status/instances', {}, (data) => {
+                const instances = data.instances || [];
+                const $panels = $('#instanceAccordion');
+                $panels.empty();
+
+                if (!instances.length) {
+                    $panels.html('<div class="content-box"><div class="col-md-12"><p>{{ lang._("No NetBird instances configured.") }}</p></div></div>');
+                    return;
+                }
+
+                instances.forEach((inst, idx) => {
+                    const collapseId = `nb-collapse-${inst.uuid}`;
+                    const panel = `
+                        <div class="panel panel-default">
+                            <div class="panel-heading" role="tab">
+                                <h4 class="panel-title">
+                                    <a role="button" data-toggle="collapse" data-parent="#instanceAccordion" href="#${collapseId}">
+                                        ${inst.name} &nbsp;
+                                        <span id="nb-badge-${inst.uuid}" class="label label-default">{{ lang._('Unknown') }}</span>
+                                        ${inst.enabled ? '' : ' <span class="label label-default">{{ lang._("Disabled") }}</span>'}
+                                    </a>
+                                </h4>
+                            </div>
+                            <div id="${collapseId}" class="panel-collapse collapse${idx === 0 ? ' in' : ''}" role="tabpanel">
+                                <div class="panel-body">
+                                    <button class="btn btn-primary btn-xs hidden" id="nb-connect-${inst.uuid}">{{ lang._('Connect') }}</button>
+                                    <button class="btn btn-default btn-xs hidden" id="nb-disconnect-${inst.uuid}">{{ lang._('Disconnect') }}</button>
+                                    <br><br>
+                                    <h2>{{ lang._('Connection Status') }}</h2>
+                                    <div class="table-responsive" id="nb-connstatus-${inst.uuid}"></div>
+                                    <div class="hidden" id="nb-peers-container-${inst.uuid}">
+                                        <h2>{{ lang._('Peers Detail') }}</h2>
+                                        <div class="table-responsive" id="nb-peers-${inst.uuid}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    $panels.append(panel);
+
+                    $(`#nb-connect-${inst.uuid}`).SimpleActionButton({
+                        onAction: () => {
+                            loadInstanceStatus(inst.uuid);
+                        }
+                    }).attr('data-endpoint', `/api/netbird/service/connect/${inst.uuid}`);
+
+                    $(`#nb-disconnect-${inst.uuid}`).SimpleActionButton({
+                        onAction: () => {
+                            loadInstanceStatus(inst.uuid);
+                        }
+                    }).attr('data-endpoint', `/api/netbird/service/disconnect/${inst.uuid}`);
+
+                    loadInstanceStatus(inst.uuid);
+                });
             });
         }
 
@@ -251,20 +313,13 @@
             });
         }
 
-        loadConnectionStatus();
+        loadInstances();
         loadVersionData();
     });
 </script>
 <section class="page-content-main">
     <div class="content-box">
-        <div class="col-md-12">
-            <h2>{{ lang._('Connection Status') }}</h2>
-            <div class="table-responsive" id="connStatus"></div>
-        </div>
-        <div class="col-md-12 hidden" id="peersDetailContainer">
-            <h2>{{ lang._('Peers Detail') }}</h2>
-            <div class="table-responsive" id="peersDetail"></div>
-        </div>
+        <div class="panel-group" id="instanceAccordion" role="tablist" aria-multiselectable="true"></div>
     </div>
     <br>
     <div class="content-box">

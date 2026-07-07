@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (C) 2025 NetBird GmbH
+ * Copyright (C) 2026 Myah Mitchell, Innovative Networks, Inc. d.b.a INDIGEX
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,46 +29,55 @@
 namespace OPNsense\Netbird\Api;
 
 use OPNsense\Base\ApiMutableModelControllerBase;
-use OPNsense\Core\Backend;
 
 /**
- * Class StatusController
+ * Grid CRUD for NetBird instances.
  * @package OPNsense\Netbird
  */
-class StatusController extends ApiMutableModelControllerBase
+class InstanceController extends ApiMutableModelControllerBase
 {
-    protected static $internalModelClass = '\OPNsense\Netbird\Status';
-    protected static $internalModelName = 'Netbird';
+    protected static $internalModelName = 'settings';
+    protected static $internalModelClass = '\OPNsense\Netbird\Settings';
 
-    /**
-     * List every configured instance (uuid, name, enabled) for the Status
-     * page's instance selector.
-     * @return array
-     */
-    public function instancesAction(): array
+    public function searchInstanceAction()
     {
-        $instances = [];
-        foreach ((new \OPNsense\Netbird\Settings())->instance->iterateItems() as $uuid => $node) {
-            $instances[] = [
-                'uuid' => $uuid,
-                'name' => (string)$node->name,
-                'enabled' => (string)$node->enabled == '1',
-            ];
+        $response = $this->searchBase('instance');
+
+        $svc = new ServiceController();
+        foreach ($response['rows'] as &$row) {
+            if (empty($row['enabled'])) {
+                $row['status'] = 5;
+                continue;
+            }
+            $result = $svc->statusAction($row['uuid']);
+            $row['status'] = ($result['status'] ?? '') == 'running' ? 0 : 2;
         }
-        return ['instances' => $instances];
+
+        return $response;
     }
 
-    /**
-     * @param string $uuid instance uuid
-     * @return array
-     */
-    public function statusAction($uuid): array
+    public function getInstanceAction($uuid = null)
     {
-        $backend = new Backend();
-        $status = json_decode($backend->configdpRun("netbird status-json", [$uuid]), true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($status)) {
-            return $status;
-        }
-        return [];
+        return $this->getBase('instance', 'instance', $uuid);
+    }
+
+    public function addInstanceAction()
+    {
+        return $this->addBase('instance', 'instance');
+    }
+
+    public function setInstanceAction($uuid)
+    {
+        return $this->setBase('instance', 'instance', $uuid);
+    }
+
+    public function delInstanceAction($uuid)
+    {
+        return $this->delBase('instance', $uuid);
+    }
+
+    public function toggleInstanceAction($uuid, $enabled = null)
+    {
+        return $this->toggleBase('instance', $uuid, $enabled);
     }
 }

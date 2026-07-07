@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (C) 2025 NetBird GmbH
+ * Copyright (C) 2026 Myah Mitchell, Innovative Networks, Inc. d.b.a INDIGEX
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,49 +26,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-namespace OPNsense\Netbird\Api;
+namespace OPNsense\Netbird;
 
-use OPNsense\Base\ApiMutableModelControllerBase;
-use OPNsense\Core\Backend;
+use OPNsense\Base\IndexController;
 
 /**
- * Class StatusController
+ * Class InstanceController
  * @package OPNsense\Netbird
  */
-class StatusController extends ApiMutableModelControllerBase
+class InstanceController extends IndexController
 {
-    protected static $internalModelClass = '\OPNsense\Netbird\Status';
-    protected static $internalModelName = 'Netbird';
-
-    /**
-     * List every configured instance (uuid, name, enabled) for the Status
-     * page's instance selector.
-     * @return array
-     */
-    public function instancesAction(): array
+    public function indexAction()
     {
-        $instances = [];
-        foreach ((new \OPNsense\Netbird\Settings())->instance->iterateItems() as $uuid => $node) {
-            $instances[] = [
-                'uuid' => $uuid,
-                'name' => (string)$node->name,
-                'enabled' => (string)$node->enabled == '1',
-            ];
-        }
-        return ['instances' => $instances];
-    }
-
-    /**
-     * @param string $uuid instance uuid
-     * @return array
-     */
-    public function statusAction($uuid): array
-    {
-        $backend = new Backend();
-        $status = json_decode($backend->configdpRun("netbird status-json", [$uuid]), true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($status)) {
-            return $status;
-        }
-        return [];
+        $this->view->formDialogInstance = $this->getForm('dialogInstance');
+        $this->view->formGridInstance = $this->getFormGrid('dialogInstance');
+        $this->view->pick('OPNsense/Netbird/instance');
     }
 }

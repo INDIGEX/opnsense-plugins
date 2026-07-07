@@ -30,6 +30,7 @@ namespace OPNsense\Netbird\Api;
 
 use OPNsense\Base\ApiMutableServiceControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Netbird\Settings;
 
 /**
  * Class ServiceController
@@ -43,13 +44,13 @@ class ServiceController extends ApiMutableServiceControllerBase
     protected static $internalServiceName = 'netbird';
 
     /**
-     * Sync settings into NetBird's own config.json before the base class
-     * stops/reloads/starts the service.  Settings changes are normally
-     * picked up by a debounced, asynchronous config-changed event; that is
-     * too late for a value like the WireGuard interface name, which must
-     * already be correct in config.json by the time the service restarts
-     * as part of this same request, or the daemon would come back up on
-     * the previous interface name.
+     * Sync settings into every instance's own config.json before the base
+     * class stops/reloads/starts.  Settings changes are normally picked up
+     * by a debounced, asynchronous config-changed event; that is too late
+     * for a value like the WireGuard interface name, which must already be
+     * correct in config.json by the time the service restarts as part of
+     * this same request, or the daemon would come back up on the previous
+     * interface name.
      * @return array response message
      * @throws \Exception when configd action fails
      * @throws \ReflectionException when model can't be instantiated
@@ -61,5 +62,125 @@ class ServiceController extends ApiMutableServiceControllerBase
         }
 
         return parent::reconfigureAction();
+    }
+
+    /**
+     * @param string|null $uuid instance uuid, or null to start every
+     *     configured instance (falls through to the base implementation,
+     *     which os-netbird's rc script itself expands into "every instance")
+     * @return array
+     */
+    public function startAction($uuid = null)
+    {
+        if (empty($uuid)) {
+            return parent::startAction();
+        }
+        if ($this->request->isPost()) {
+            $response = trim((new Backend())->configdpRun('netbird start', [$uuid]));
+            return ['response' => $response];
+        }
+        return ['response' => []];
+    }
+
+    /**
+     * @param string|null $uuid instance uuid, or null for every instance
+     * @return array
+     */
+    public function stopAction($uuid = null)
+    {
+        if (empty($uuid)) {
+            return parent::stopAction();
+        }
+        if ($this->request->isPost()) {
+            $response = trim((new Backend())->configdpRun('netbird stop', [$uuid]));
+            return ['response' => $response];
+        }
+        return ['response' => []];
+    }
+
+    /**
+     * @param string|null $uuid instance uuid, or null for every instance
+     * @return array
+     */
+    public function restartAction($uuid = null)
+    {
+        if (empty($uuid)) {
+            return parent::restartAction();
+        }
+        if ($this->request->isPost()) {
+            $response = trim((new Backend())->configdpRun('netbird restart', [$uuid]));
+            return ['response' => $response];
+        }
+        return ['response' => []];
+    }
+
+    /**
+     * @param string|null $uuid instance uuid, or null for the global
+     *     (any instance running) status used by the services widget
+     * @return array
+     * @throws \Exception when configd action fails
+     */
+    public function statusAction($uuid = null)
+    {
+        if (empty($uuid)) {
+            return parent::statusAction();
+        }
+
+        $response = (new Backend())->configdpRun('netbird status', [$uuid]);
+        if (strpos($response, 'not running') !== false) {
+            $status = 'stopped';
+        } elseif (strpos($response, 'is running') !== false) {
+            $status = 'running';
+        } else {
+            $status = 'unknown';
+        }
+
+        return [
+            'status' => $status,
+            'widget' => [
+                'caption_restart' => gettext('Restart'),
+                'caption_start' => gettext('Start'),
+                'caption_stop' => gettext('Stop'),
+            ],
+        ];
+    }
+
+    /**
+     * Bring a single instance's tunnel up (netbird up), passing its
+     * configured management URL / setup key for first-time connection.
+     * @param string $uuid instance uuid
+     * @return array
+     * @throws \ReflectionException when model can't be instantiated
+     */
+    public function connectAction($uuid)
+    {
+        if ($this->request->isPost()) {
+            $mdl = new Settings();
+            $node = $mdl->getNodeByReference('instance.' . $uuid);
+            if ($node === null) {
+                return ['result' => 'not found'];
+            }
+            $response = (new Backend())->configdpRun('netbird up-setup-key', [
+                $uuid,
+                $node->managementUrl->getValue(),
+                $node->setupKey->getValue(),
+            ]);
+            return ['result' => trim($response)];
+        }
+        return ['result' => 'failed'];
+    }
+
+    /**
+     * Disconnect a single instance's tunnel (netbird down).
+     * @param string $uuid instance uuid
+     * @return array
+     */
+    public function disconnectAction($uuid)
+    {
+        if ($this->request->isPost()) {
+            $response = (new Backend())->configdpRun('netbird down', [$uuid]);
+            return ['result' => trim($response)];
+        }
+        return ['result' => 'failed'];
     }
 }
