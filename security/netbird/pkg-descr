@@ -19,6 +19,10 @@ other peers.
 Plugin Changelog
 ================
 
+2.0
+
+* Added support for running multiple independent NetBird instances on one firewall, each with its own interface, WireGuard port, management server and setup key (contributed by Myah Mitchell)
+
 1.3
 
 * Added a WireGuard Interface setting so NetBird's tunnel device name is no longer hardcoded to wt0 (contributed by Myah Mitchell)
