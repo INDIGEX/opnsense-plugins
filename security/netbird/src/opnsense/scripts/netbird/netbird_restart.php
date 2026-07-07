@@ -31,7 +31,7 @@
  * Wrapper script for "netbird restart" that automatically reloads the
  * packet filter after the tunnel interface is recreated.
  *
- * Usage: netbird_restart.php <instance-uuid_safe>
+ * Usage: netbird_restart.php [instance-uuid_safe]
  *
  * When NetBird restarts, it destroys the existing tunnel interface,
  * creates a fresh tun device, and renames it.  This is particularly
@@ -39,9 +39,12 @@
  * NetBird is restarted to bind to the new path.
  *
  * This script:
- *   1. Resolves the instance's socket/interface from netbird_instances().
- *   2. Runs `/usr/local/etc/rc.d/os-netbird restart <id>`.
- *   3. Waits for the tunnel interface and reloads the packet filter via
+ *   1. Resolves the instance's socket/interface from netbird_instances(),
+ *      or every enabled instance if no instance id was given -- matching
+ *      the "no id -> every instance" behavior os-netbird's rc script
+ *      itself already provides for start/stop/status.
+ *   2. Runs `/usr/local/etc/rc.d/os-netbird restart <id>` for each.
+ *   3. Waits for each tunnel interface and reloads the packet filter via
  *      netbird_sync_filter().
  */
 
@@ -49,20 +52,29 @@ require_once("config.inc");
 require_once("util.inc");
 require_once("plugins.inc.d/netbird.inc");
 
-$instance = netbird_resolve_instance($argv[1] ?? '');
-if ($instance === null) {
-    log_msg("NetBird: netbird_restart.php called with unknown instance '" . ($argv[1] ?? '') . "'");
-    exit(1);
+$id = $argv[1] ?? '';
+if ($id === '') {
+    $instances = netbird_instances();
+} else {
+    $instance = netbird_resolve_instance($id);
+    if ($instance === null) {
+        log_msg("NetBird: netbird_restart.php called with unknown instance '{$id}'");
+        exit(1);
+    }
+    $instances = [$instance];
 }
 
-// --- Restart the NetBird service -------------------------------------------
-log_msg("NetBird: Restarting instance {$instance['name']}");
-mwexecfb('/usr/local/etc/rc.d/os-netbird restart ' . escapeshellarg($instance['uuid_safe']));
+foreach ($instances as $instance) {
+    log_msg("NetBird: Restarting instance {$instance['name']}");
+    mwexecfb('/usr/local/etc/rc.d/os-netbird restart ' . escapeshellarg($instance['uuid_safe']));
+}
 
-// Short delay to allow the restart to destroy the old interface before we
-// start looking for the new one.
+// Short delay to allow the restart(s) to destroy the old interface(s)
+// before we start looking for the new one(s).
 sleep(2);
 
-netbird_sync_filter($instance['iface']);
+foreach ($instances as $instance) {
+    netbird_sync_filter($instance['iface']);
+}
 
 exit(0);
