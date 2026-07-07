@@ -29,31 +29,89 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/**
+ * Master enable switch (global, independent of any individual instance).
+ * @return bool
+ */
 function netbird_enabled()
 {
     return !(new \OPNsense\Netbird\Settings())->general->enable->isEmpty();
 }
 
-function netbird_carp_enabled()
+/**
+ * Enumerate configured NetBird instances.
+ * @param bool $enabled_only only return instances with enabled == 1
+ * @return array list of instance descriptors: uuid, uuid_safe (dashes
+ *     replaced with underscores, safe for use in shell variable names and
+ *     rc.conf.d keys), name, iface, port, carp, managementUrl, setupKey,
+ *     socket, pidfile, config (path to this instance's config.json)
+ */
+function netbird_instances($enabled_only = true)
 {
-    $settings = new \OPNsense\Netbird\Settings();
-    return (string)$settings->general->enable == '1' &&
-           (string)$settings->general->enablecarp == '1';
+    $instances = [];
+    if (!netbird_enabled()) {
+        return $instances;
+    }
+
+    foreach ((new \OPNsense\Netbird\Settings())->instance->iterateItems() as $uuid => $node) {
+        if ($enabled_only && (string)$node->enabled != '1') {
+            continue;
+        }
+        $uuid_safe = str_replace('-', '_', $uuid);
+        $instances[] = [
+            'uuid' => $uuid,
+            'uuid_safe' => $uuid_safe,
+            'name' => (string)$node->name,
+            'iface' => (string)$node->wireguardInterface,
+            'port' => (string)$node->wireguardPort,
+            'carp' => (string)$node->enablecarp == '1',
+            'managementUrl' => (string)$node->managementUrl,
+            'setupKey' => (string)$node->setupKey,
+            'socket' => "/var/run/netbird_{$uuid_safe}.sock",
+            'pidfile' => "/var/run/netbird_{$uuid_safe}.pid",
+            'config' => \OPNsense\Netbird\Settings::configPath($uuid),
+        ];
+    }
+
+    return $instances;
 }
 
 /**
- * Check if the current host is CARP master for any monitored VIP.
- * Used to guard the service so it cannot start on a BACKUP node.
- * Returns true if CARP is not enabled OR if we are currently MASTER.
+ * Check whether CARP failover support is relevant right now: NetBird is
+ * enabled and at least one instance (or, when $instance is given, that
+ * specific instance) has CARP support enabled.
+ * @param array|null $instance a single instance descriptor from
+ *     netbird_instances(), or null to check across all instances
+ * @return bool
+ */
+function netbird_carp_enabled($instance = null)
+{
+    if (!netbird_enabled()) {
+        return false;
+    }
+
+    if ($instance !== null) {
+        return !empty($instance['carp']);
+    }
+
+    foreach (netbird_instances() as $inst) {
+        if ($inst['carp']) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Check if the current host is CARP master for any monitored VIP. This is
+ * a host-wide probe, independent of any individual NetBird instance; used
+ * to guard instances so they cannot start on a BACKUP node.
+ * Returns true if we are currently MASTER for any VHID.
  * @return bool
  */
 function netbird_carp_check_master()
 {
-    if (!netbird_carp_enabled()) {
-        // CARP not enabled for NetBird, allow service to start
-        return true;
-    }
-
     // Check ifconfig output for CARP MASTER state
     $ifconfig = shell_exec('/sbin/ifconfig');
     if (preg_match('/carp:.*MASTER/', $ifconfig)) {
@@ -61,17 +119,6 @@ function netbird_carp_check_master()
     }
 
     return false;
-}
-
-/**
- * Name of the WireGuard tunnel device used by NetBird.  Single point of
- * truth for all plugin scripts; configurable in the GUI, defaults to wt0.
- * @return string
- */
-function netbird_wg_iface()
-{
-    $iface = (string)(new \OPNsense\Netbird\Settings())->general->wireguardInterface;
-    return !empty($iface) ? $iface : 'wt0';
 }
 
 /**
@@ -86,12 +133,14 @@ function netbird_iface_exists($iface)
 }
 
 /**
- * Check whether NetBird is connected to its management service.
+ * Check whether a NetBird instance is connected to its management service.
+ * @param string $socket path to the instance's daemon socket
  * @return bool
  */
-function netbird_connected()
+function netbird_connected($socket)
 {
-    $status_json = shell_exec('/usr/local/bin/netbird status --json 2>/dev/null');
+    $cmd = '/usr/local/bin/netbird status --json --daemon-addr ' . escapeshellarg('unix://' . $socket) . ' 2>/dev/null';
+    $status_json = shell_exec($cmd);
     if (!empty($status_json)) {
         $status = json_decode($status_json, true);
         if (json_last_error() === JSON_ERROR_NONE) {
@@ -142,50 +191,50 @@ function netbird_sync_filter($iface, $timeout = 15)
 
 function netbird_devices()
 {
-    $iface = netbird_wg_iface();
-    $names = [];
-    if (netbird_enabled()) {
+    $devices = [];
+    foreach (netbird_instances() as $inst) {
         /*
          * Interfaces > Assignments only allows saving an assignment to a
          * device that appears in this "names" list (see core's
          * list_assign_options.php); it does not consult "volatile" at all.
-         * Without this, the tunnel device is only listed while NetBird is
-         * actually connected, so the assignment page can't be saved on a
-         * CARP BACKUP node where it's intentionally kept down. Populate it
-         * from our own enabled state instead of live interface presence,
-         * mirroring how core's own WireGuard plugin (wireguard_devices())
-         * handles the same volatile-interface gap.
+         * Without this, a tunnel device is only listed while its NetBird
+         * instance is actually connected, so the assignment page can't be
+         * saved on a CARP BACKUP node where it's intentionally kept down.
+         * Populate it from our own configuration instead of live interface
+         * presence, mirroring how core's own WireGuard plugin
+         * (wireguard_devices()) handles the same volatile-interface gap.
          */
-        $names[$iface] = ['descr' => sprintf('%s (%s)', $iface, gettext('NetBird'))];
+        $devices[] = [
+            'pattern' => '^' . preg_quote($inst['iface'], '/') . '$',
+            'configurable' => false,
+            'spoofmac' => false,
+            'volatile' => true,
+            'type' => 'netbird',
+            'names' => [
+                $inst['iface'] => ['descr' => sprintf('%s (NetBird - %s)', $inst['iface'], $inst['name'])],
+            ],
+        ];
     }
 
-    return [[
-        'pattern' => '^' . preg_quote($iface, '/') . '$',
-        'configurable' => false,
-        'spoofmac' => false,
-        'volatile' => true,
-        'type' => 'netbird',
-        'names' => $names,
-    ]];
+    return $devices;
 }
 
 function netbird_services()
 {
     $services = [];
-    if (!netbird_enabled()) {
-        return $services;
+    foreach (netbird_instances() as $inst) {
+        $services[] = [
+            'description' => sprintf('%s (%s)', gettext('NetBird'), $inst['name']),
+            'configd' => [
+                'restart' => ["netbird restart {$inst['uuid']}"],
+                'start' => ["netbird start {$inst['uuid']}"],
+                'stop' => ["netbird stop {$inst['uuid']}"],
+            ],
+            'name' => 'netbird',
+            'id' => $inst['uuid'],
+            'pidfile' => $inst['pidfile'],
+        ];
     }
-
-    $services[] = [
-        'description' => gettext('NetBird'),
-        'configd' => [
-            'restart' => ['netbird restart'],
-            'start' => ['netbird start'],
-            'stop' => ['netbird stop'],
-        ],
-        'name' => 'netbird',
-        'pidfile' => '/var/run/netbird.pid',
-    ];
 
     return $services;
 }

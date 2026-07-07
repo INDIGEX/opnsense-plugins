@@ -1,13 +1,30 @@
 <model>
     <mount>//OPNsense/netbird/settings</mount>
     <description>NetBird settings</description>
-    <version>1.3.0</version>
+    <version>2.0.0</version>
     <items>
         <general>
             <enable type="BooleanField">
                 <Default>0</Default>
                 <Required>Y</Required>
             </enable>
+        </general>
+        <instance type="ArrayField">
+            <enabled type="BooleanField">
+                <Default>1</Default>
+                <Required>Y</Required>
+            </enabled>
+            <name type="TextField">
+                <Mask>/^[0-9a-zA-Z._-]{1,32}$/</Mask>
+                <Required>Y</Required>
+                <ValidationMessage>Name may only contain letters, numbers, dots, dashes and underscores (max 32 characters).</ValidationMessage>
+                <Constraints>
+                    <check001>
+                        <ValidationMessage>This name is already in use by another instance.</ValidationMessage>
+                        <type>UniqueConstraint</type>
+                    </check001>
+                </Constraints>
+            </name>
             <enablecarp type="BooleanField">
                 <Default>0</Default>
                 <Required>Y</Required>
@@ -17,6 +34,12 @@
                 <Required>Y</Required>
                 <Mask>/^wt[0-9]{1,3}$/</Mask>
                 <ValidationMessage>Interface name must start with "wt" followed by 1-3 digits (e.g. wt0), matching the name NetBird's WireGuard tunnel device is renamed to.</ValidationMessage>
+                <Constraints>
+                    <check001>
+                        <ValidationMessage>This interface is already in use by another instance.</ValidationMessage>
+                        <type>UniqueConstraint</type>
+                    </check001>
+                </Constraints>
             </wireguardInterface>
             <wireguardPort type="IntegerField">
                 <Default>51820</Default>
@@ -24,69 +47,73 @@
                 <minimum>1</minimum>
                 <maximum>65535</maximum>
                 <ValidationMessage>Please specify a valid port.</ValidationMessage>
+                <Constraints>
+                    <check001>
+                        <ValidationMessage>This port is already in use by another instance.</ValidationMessage>
+                        <type>UniqueConstraint</type>
+                    </check001>
+                </Constraints>
             </wireguardPort>
             <ipmapping type="TextField">
                 <MaskPerItem>Y</MaskPerItem>
                 <Mask>/^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}(?:\/(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}|[a-zA-Z][a-zA-Z0-9_.-]*))?$/u</Mask>
             </ipmapping>
-        </general>
-        <firewall>
-            <allowConfig type="BooleanField">
+            <managementUrl type="UrlField">
+                <Required>Y</Required>
+                <Default>https://api.netbird.io</Default>
+            </managementUrl>
+            <setupKey type="UpdateOnlyTextField">
+                <Mask>/^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i</Mask>
+                <ValidationMessage>Please specify a valid setup key.</ValidationMessage>
+            </setupKey>
+            <firewallAllowConfig type="BooleanField">
                 <Default>1</Default>
                 <Required>Y</Required>
-            </allowConfig>
-            <blockInboundConnection type="BooleanField">
+            </firewallAllowConfig>
+            <firewallBlockInboundConnection type="BooleanField">
                 <Default>0</Default>
                 <Required>Y</Required>
-            </blockInboundConnection>
-        </firewall>
-        <ssh>
-            <enable type="BooleanField">
+            </firewallBlockInboundConnection>
+            <sshEnable type="BooleanField">
                 <Default>0</Default>
                 <Required>Y</Required>
-            </enable>
-            <enableRoot type="BooleanField">
+            </sshEnable>
+            <sshEnableRoot type="BooleanField">
                 <Default>0</Default>
                 <Required>Y</Required>
-            </enableRoot>
-            <enableSFTP type="BooleanField">
+            </sshEnableRoot>
+            <sshEnableSFTP type="BooleanField">
                 <Default>0</Default>
                 <Required>Y</Required>
-            </enableSFTP>
-            <enableLocalPortForwarding type="BooleanField">
+            </sshEnableSFTP>
+            <sshEnableLocalPortForwarding type="BooleanField">
                 <Default>0</Default>
                 <Required>Y</Required>
-            </enableLocalPortForwarding>
-            <enableRemotePortForwarding type="BooleanField">
+            </sshEnableLocalPortForwarding>
+            <sshEnableRemotePortForwarding type="BooleanField">
                 <Default>0</Default>
                 <Required>Y</Required>
-            </enableRemotePortForwarding>
-            <enableAuth type="BooleanField">
+            </sshEnableRemotePortForwarding>
+            <sshEnableAuth type="BooleanField">
                 <Default>1</Default>
                 <Required>Y</Required>
-            </enableAuth>
-        </ssh>
-        <dns>
-            <enable type="BooleanField">
+            </sshEnableAuth>
+            <dnsEnable type="BooleanField">
                 <Default>1</Default>
                 <Required>Y</Required>
-            </enable>
-        </dns>
-        <routing>
-            <accessLan type="BooleanField">
+            </dnsEnable>
+            <routingAccessLan type="BooleanField">
                 <Default>1</Default>
                 <Required>Y</Required>
-            </accessLan>
-            <acceptClientRoutes type="BooleanField">
+            </routingAccessLan>
+            <routingAcceptClientRoutes type="BooleanField">
                 <Default>1</Default>
                 <Required>Y</Required>
-            </acceptClientRoutes>
-            <acceptServerRoutes type="BooleanField">
+            </routingAcceptClientRoutes>
+            <routingAcceptServerRoutes type="BooleanField">
                 <Default>1</Default>
                 <Required>Y</Required>
-            </acceptServerRoutes>
-        </routing>
-        <postquantum>
+            </routingAcceptServerRoutes>
             <enableRosenpass type="BooleanField">
                 <Default>0</Default>
                 <Required>Y</Required>
@@ -95,7 +122,7 @@
                 <Default>0</Default>
                 <Required>Y</Required>
             </rosenpassPermissive>
-        </postquantum>
+        </instance>
         <syslog>
             <logLevel type="OptionField">
                 <Required>Y</Required>

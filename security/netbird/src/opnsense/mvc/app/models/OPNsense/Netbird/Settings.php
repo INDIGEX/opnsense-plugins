@@ -35,37 +35,69 @@ use OPNsense\Base\BaseModel;
 
 class Settings extends BaseModel
 {
-    public function syncConfig($target = '/var/db/netbird/config.json')
+    /**
+     * Path to the config.json NetBird reads for a given instance uuid.
+     * @param string $uuid instance uuid
+     * @return string
+     */
+    public static function configPath($uuid)
     {
-        $config = json_decode(file_get_contents($target), true);
-        if (!is_array($config)) {
-            $jsonError = json_last_error_msg();
-            syslog(LOG_ERR, "netbird: failed to decode configuration: $jsonError");
+        return "/var/db/netbird/{$uuid}/config.json";
+    }
+
+    /**
+     * Sync every configured instance's settings into its own NetBird
+     * config.json. An instance whose config.json does not exist yet (e.g.
+     * it has never been started, so NetBird has not created its default
+     * configuration) is skipped rather than having one fabricated here.
+     */
+    public function syncConfig()
+    {
+        foreach ($this->instance->iterateItems() as $uuid => $node) {
+            $this->syncInstanceConfig($uuid, $node);
+        }
+    }
+
+    /**
+     * @param string $uuid instance uuid
+     * @param \OPNsense\Base\FieldTypes\ArrayField $node instance model node
+     */
+    private function syncInstanceConfig($uuid, $node)
+    {
+        $target = self::configPath($uuid);
+        if (!is_file($target)) {
+            syslog(LOG_NOTICE, "netbird: no config.json yet for instance {$uuid}, skipping sync");
             return;
         }
 
-        $config["WgIface"] = $this->general->wireguardInterface->__toString();
-        $config["WgPort"] = (int)$this->general->wireguardPort->__toString();
-        $config["ServerSSHAllowed"] = $this->ssh->enable->__toString() == 1;
-        $config["IpMapping"] = $this->general->ipmapping->__toString();
-        $config["EnableSSHRoot"] = $this->ssh->enableRoot->__toString() == 1;
-        $config["EnableSSHSFTP"] = $this->ssh->enableSFTP->__toString() == 1;
-        $config["EnableSSHLocalPortForwarding"] = $this->ssh->enableLocalPortForwarding->__toString() == 1;
-        $config["EnableSSHRemotePortForwarding"] = $this->ssh->enableRemotePortForwarding->__toString() == 1;
-        $config["DisableSSHAuth"] = $this->ssh->enableAuth->__toString() != 1;
-        $config["DisableFirewall"] = $this->firewall->allowConfig->__toString() != 1;
-        $config["BlockInbound"] = $this->firewall->blockInboundConnection->__toString() == 1;
-        $config["DisableDNS"] = $this->dns->enable->__toString() != 1;
-        $config["BlockLANAccess"] = $this->routing->accessLan->__toString() != 1;
-        $config["DisableClientRoutes"] = $this->routing->acceptClientRoutes->__toString() != 1;
-        $config["DisableServerRoutes"] = $this->routing->acceptServerRoutes->__toString() != 1;
-        $config["RosenpassEnabled"] = $this->postquantum->enableRosenpass->__toString() == 1;
-        $config["RosenpassPermissive"] = $this->postquantum->rosenpassPermissive->__toString() == 1;
+        $config = json_decode(file_get_contents($target), true);
+        if (!is_array($config)) {
+            $jsonError = json_last_error_msg();
+            syslog(LOG_ERR, "netbird: failed to decode configuration for instance {$uuid}: $jsonError");
+            return;
+        }
 
+        $config["WgIface"] = $node->wireguardInterface->__toString();
+        $config["WgPort"] = (int)$node->wireguardPort->__toString();
+        $config["ServerSSHAllowed"] = $node->sshEnable->__toString() == 1;
+        $config["IpMapping"] = $node->ipmapping->__toString();
+        $config["EnableSSHRoot"] = $node->sshEnableRoot->__toString() == 1;
+        $config["EnableSSHSFTP"] = $node->sshEnableSFTP->__toString() == 1;
+        $config["EnableSSHLocalPortForwarding"] = $node->sshEnableLocalPortForwarding->__toString() == 1;
+        $config["EnableSSHRemotePortForwarding"] = $node->sshEnableRemotePortForwarding->__toString() == 1;
+        $config["DisableSSHAuth"] = $node->sshEnableAuth->__toString() != 1;
+        $config["DisableFirewall"] = $node->firewallAllowConfig->__toString() != 1;
+        $config["BlockInbound"] = $node->firewallBlockInboundConnection->__toString() == 1;
+        $config["DisableDNS"] = $node->dnsEnable->__toString() != 1;
+        $config["BlockLANAccess"] = $node->routingAccessLan->__toString() != 1;
+        $config["DisableClientRoutes"] = $node->routingAcceptClientRoutes->__toString() != 1;
+        $config["DisableServerRoutes"] = $node->routingAcceptServerRoutes->__toString() != 1;
+        $config["RosenpassEnabled"] = $node->enableRosenpass->__toString() == 1;
+        $config["RosenpassPermissive"] = $node->rosenpassPermissive->__toString() == 1;
 
         $result = file_put_contents($target, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         if ($result === false) {
-            syslog(LOG_ERR, "netbird: failed to write updated configuration to $target");
+            syslog(LOG_ERR, "netbird: failed to write updated configuration for instance {$uuid} to $target");
         }
     }
 }
