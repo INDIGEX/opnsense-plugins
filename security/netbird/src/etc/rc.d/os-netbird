@@ -29,7 +29,11 @@ load_rc_config "$name"
 : ${osnetbird_enable:="NO"}
 : ${osnetbird_loglevel:="info"}
 
-id="$2"
+# Normalize dashes to underscores: callers may pass either the raw model
+# uuid (with dashes, e.g. straight from the GUI/API) or the uuid_safe form
+# already used for rc.conf.d variable names; a dash is not a valid shell
+# variable name character, so this must happen before it's used in one.
+id=$(echo "$2" | tr - _)
 
 if [ -z "$id" ]; then
 	# No instance id given: dispatch to every configured instance.

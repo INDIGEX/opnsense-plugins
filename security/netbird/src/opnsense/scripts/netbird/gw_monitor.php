@@ -29,8 +29,9 @@
 
 /*
  * This script checks whether the default gateway has actually changed
- * since the last invocation.  If so, it restarts NetBird so it can
- * re-establish connections through the new default route.
+ * since the last invocation.  If so, it restarts every enabled NetBird
+ * instance so each can re-establish connections through the new default
+ * route.
  *
  * A cached copy of the previous default gateway is stored in a temp file.
  * Only when the current default gateway differs from the cached value
@@ -42,8 +43,9 @@ require_once("config.inc");
 require_once("util.inc");
 require_once("plugins.inc.d/netbird.inc");
 
-if (!netbird_enabled()) {
-    log_msg("NetBird monitor: NetBird is disabled, not restarting");
+$instances = netbird_instances();
+if (empty($instances)) {
+    log_msg("NetBird monitor: No enabled instances, not restarting");
     exit(0);
 }
 
@@ -82,5 +84,7 @@ if ($cached_gw === '') {
     exit(0);
 }
 
-log_msg("NetBird monitor: Default gateway changed from {$cached_gw} to {$current_gw}, restarting NetBird");
-mwexecfm('/usr/local/sbin/configctl netbird restart');
+log_msg("NetBird monitor: Default gateway changed from {$cached_gw} to {$current_gw}, restarting every instance");
+foreach ($instances as $inst) {
+    mwexecfm('/usr/local/sbin/configctl netbird restart ' . escapeshellarg($inst['uuid']));
+}

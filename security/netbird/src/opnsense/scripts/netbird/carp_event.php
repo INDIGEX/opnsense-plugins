@@ -32,10 +32,14 @@
  * execute only the last one.  This moves events until we have at least
  * 2 seconds of "silence" to process them, preventing duplicate actions
  * when multiple CARP interfaces transition simultaneously during failover.
+ *
+ * Once debounced, brings every CARP-enabled instance up or down according
+ * to the new state.
  */
 
 require_once("config.inc");
 require_once("util.inc");
+require_once("plugins.inc.d/netbird.inc");
 
 $subsystem = !empty($argv[1]) ? $argv[1] : 'unknown';
 $type = !empty($argv[2]) ? $argv[2] : 'unknown';
@@ -60,15 +64,21 @@ if (@file_get_contents($debounce_ref) !== $my_token) {
 
 // We are the last event in the burst — proceed
 log_msg("NetBird CARP: '{$type}' event from '{$subsystem}', appears to be the last event in burst, processing");
-switch ($type) {
-    case 'MASTER':
-        log_msg("NetBird CARP: '{$type}' event from '{$subsystem}', starting NetBird's WireGuard interface");
-        mwexecfm('/usr/local/sbin/configctl netbird up');
-        break;
-    case 'BACKUP':
-        log_msg("NetBird CARP: '{$type}' event from '{$subsystem}', stopping NetBird's WireGuard interface");
-        mwexecfm('/usr/local/sbin/configctl netbird down');
-        break;
+
+foreach (netbird_instances() as $inst) {
+    if (!$inst['carp']) {
+        continue;
+    }
+    switch ($type) {
+        case 'MASTER':
+            log_msg("NetBird CARP: '{$type}' event from '{$subsystem}', starting instance {$inst['name']}");
+            mwexecfm('/usr/local/sbin/configctl netbird up ' . escapeshellarg($inst['uuid']));
+            break;
+        case 'BACKUP':
+            log_msg("NetBird CARP: '{$type}' event from '{$subsystem}', stopping instance {$inst['name']}");
+            mwexecfm('/usr/local/sbin/configctl netbird down ' . escapeshellarg($inst['uuid']));
+            break;
+    }
 }
 
 @unlink($debounce_ref);

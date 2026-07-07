@@ -77,6 +77,26 @@ function netbird_instances($enabled_only = true)
 }
 
 /**
+ * Resolve a single instance by uuid, accepting either the raw model uuid
+ * (with dashes, e.g. as used by the GUI/API) or its uuid_safe form (dashes
+ * replaced with underscores, e.g. as used in shell variable names) -- the
+ * two configd/rc.d layers each expect one or the other, so every script
+ * that receives an instance id from a caller should resolve it this way.
+ * @param string $id raw uuid or uuid_safe
+ * @return array|null instance descriptor from netbird_instances(), or null
+ */
+function netbird_resolve_instance($id)
+{
+    $id_safe = str_replace('-', '_', (string)$id);
+    foreach (netbird_instances(false) as $inst) {
+        if ($inst['uuid_safe'] === $id_safe) {
+            return $inst;
+        }
+    }
+    return null;
+}
+
+/**
  * Check whether CARP failover support is relevant right now: NetBird is
  * enabled and at least one instance (or, when $instance is given, that
  * specific instance) has CARP support enabled.

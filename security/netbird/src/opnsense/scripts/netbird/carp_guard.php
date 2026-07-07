@@ -48,15 +48,7 @@ require_once('config.inc');
 require_once('util.inc');
 require_once('plugins.inc.d/netbird.inc');
 
-$uuid_safe = $argv[1] ?? '';
-$instance = null;
-foreach (netbird_instances(false) as $inst) {
-    if ($inst['uuid_safe'] === $uuid_safe) {
-        $instance = $inst;
-        break;
-    }
-}
-
+$instance = netbird_resolve_instance($argv[1] ?? '');
 if ($instance === null || !netbird_carp_enabled($instance)) {
     exit(0);
 }
