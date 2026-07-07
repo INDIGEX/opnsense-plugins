@@ -31,12 +31,16 @@
  * Wrapper script for "netbird up" that automatically reloads the packet
  * filter after the tunnel interface is created.
  *
+ * Usage: netbird_up.php <instance-uuid_safe> [extra netbird-up args...]
+ *
  * This script:
- *   1. Checks whether NetBird is already connected (skip reload if so).
- *   2. Destroys an orphaned tunnel interface left over from a previous run.
- *   3. Runs `/usr/local/bin/netbird up` with any arguments passed through
- *      by configd (e.g. -m <url> -k <key>).
- *   4. If NetBird was not already connected, waits for the tunnel interface
+ *   1. Resolves the instance's socket/interface from netbird_instances().
+ *   2. Checks whether NetBird is already connected (skip reload if so).
+ *   3. Destroys an orphaned tunnel interface left over from a previous run.
+ *   4. Runs `/usr/local/bin/netbird up` against this instance's daemon
+ *      socket, with any arguments passed through by configd
+ *      (e.g. -m <url> -k <key>).
+ *   5. If NetBird was not already connected, waits for the tunnel interface
  *      and reloads the packet filter via netbird_sync_filter().
  *
  * All configd actions that invoke "netbird up" should point here so that
@@ -47,23 +51,38 @@ require_once("config.inc");
 require_once("util.inc");
 require_once("plugins.inc.d/netbird.inc");
 
-$wt_iface = netbird_wg_iface();
+$uuid_safe = $argv[1] ?? '';
+$instance = null;
+foreach (netbird_instances(false) as $inst) {
+    if ($inst['uuid_safe'] === $uuid_safe) {
+        $instance = $inst;
+        break;
+    }
+}
+
+if ($instance === null) {
+    log_msg("NetBird: netbird_up.php called with unknown instance '{$uuid_safe}'");
+    exit(1);
+}
+
+$iface = $instance['iface'];
+$daemon_addr = '--daemon-addr ' . escapeshellarg('unix://' . $instance['socket']);
 
 // Determine the current connection state before bringing the tunnel up.
-$was_connected = netbird_connected();
+$was_connected = netbird_connected($instance['socket']);
 
 // If NetBird is not connected but its interface is still present, it is
 // orphaned from a previous run — destroy it so NetBird starts from a clean
 // slate.  If NetBird is connected, the interface is legitimately in use.
 if (!$was_connected) {
-    netbird_destroy_orphan_iface($wt_iface);
+    netbird_destroy_orphan_iface($iface);
 }
 
 // --- Build and execute the real "netbird up" command ------------------------
-// $argv[0] is this script; everything after is passed through by configd
-// (e.g. "-m https://mgmt.example.com -k SETUP-KEY").
-$extra_args = array_slice($argv, 1);
-$cmd = '/usr/local/bin/netbird up';
+// $argv[0] is this script, $argv[1] is the instance id; everything after is
+// passed through by configd (e.g. "-m https://mgmt.example.com -k KEY").
+$extra_args = array_slice($argv, 2);
+$cmd = '/usr/local/bin/netbird up ' . $daemon_addr;
 if (!empty($extra_args)) {
     $cmd .= ' ' . implode(' ', array_map('escapeshellarg', $extra_args));
 }
@@ -77,7 +96,7 @@ mwexecfm($cmd);
 // was already up, the interface already exists and the filter already knows
 // about it.
 if (!$was_connected) {
-    netbird_sync_filter($wt_iface);
+    netbird_sync_filter($iface);
 }
 
 exit(0);

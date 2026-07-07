@@ -1,0 +1,17 @@
+{% if OPNsense.netbird.settings.general.enable == '1' %}
+osnetbird_enable="YES"
+osnetbird_loglevel="{{ OPNsense.netbird.settings.syslog.logLevel }}"
+{% set Instances = [] %}
+{% for inst in helpers.toList('OPNsense.netbird.settings.instance') %}
+{%   if inst.enabled == '1' %}
+{%     set id = inst['@uuid']|replace('-', '_') %}
+osnetbird_{{ id }}_config="/var/db/netbird/{{ inst['@uuid'] }}/config.json"
+osnetbird_{{ id }}_socket="/var/run/netbird_{{ id }}.sock"
+osnetbird_{{ id }}_tundev="{{ inst.wireguardInterface }}"
+{%     do Instances.append(id) %}
+{%   endif %}
+{% endfor %}
+osnetbird_instances="{% for i in Instances %} {{ i }}{% endfor %}"
+{% else %}
+osnetbird_enable="NO"
+{% endif %}

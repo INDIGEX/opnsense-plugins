@@ -28,21 +28,10 @@
  */
 
 /*
- * Wrapper script for "netbird restart" that automatically reloads the
- * packet filter after the tunnel interface is recreated.
+ * Thin wrapper resolving a single instance's daemon socket for
+ * "netbird down", since each instance needs its own --daemon-addr.
  *
- * Usage: netbird_restart.php <instance-uuid_safe>
- *
- * When NetBird restarts, it destroys the existing tunnel interface,
- * creates a fresh tun device, and renames it.  This is particularly
- * important after a WAN failover with a default gateway switch, where
- * NetBird is restarted to bind to the new path.
- *
- * This script:
- *   1. Resolves the instance's socket/interface from netbird_instances().
- *   2. Runs `/usr/local/etc/rc.d/os-netbird restart <id>`.
- *   3. Waits for the tunnel interface and reloads the packet filter via
- *      netbird_sync_filter().
+ * Usage: netbird_down.php <instance-uuid_safe>
  */
 
 require_once("config.inc");
@@ -59,18 +48,10 @@ foreach (netbird_instances(false) as $inst) {
 }
 
 if ($instance === null) {
-    log_msg("NetBird: netbird_restart.php called with unknown instance '{$uuid_safe}'");
+    log_msg("NetBird: netbird_down.php called with unknown instance '{$uuid_safe}'");
     exit(1);
 }
 
-// --- Restart the NetBird service -------------------------------------------
-log_msg("NetBird: Restarting instance {$instance['name']}");
-mwexecfb('/usr/local/etc/rc.d/os-netbird restart ' . escapeshellarg($uuid_safe));
-
-// Short delay to allow the restart to destroy the old interface before we
-// start looking for the new one.
-sleep(2);
-
-netbird_sync_filter($instance['iface']);
+mwexecf('/usr/local/bin/netbird down --daemon-addr %s', ['unix://' . $instance['socket']]);
 
 exit(0);

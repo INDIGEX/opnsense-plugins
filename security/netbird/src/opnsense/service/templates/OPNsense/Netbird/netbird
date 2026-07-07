@@ -1,15 +1,5 @@
-{% if OPNsense.netbird.settings.general.enable == '1' %}
-netbird_enable="YES"
-netbird_setup="/usr/local/sbin/pluginctl -c netbird_sync_config"
-netbird_logfile="syslog"
-netbird_loglevel="{{ OPNsense.netbird.settings.syslog.logLevel }}"
-netbird_tun_dev="{{ OPNsense.netbird.settings.general.wireguardInterface|default('wt0') }}"
-{% if OPNsense.netbird.settings.general.enablecarp == '1' %}
-# rc.subr(8) evaluates $start_postcmd from sourced rc.conf.d files as the
-# port rc script does not define one itself; this guards CARP BACKUP nodes
-# against reconnecting NetBird after any service start (boot, HA sync, GUI).
-start_postcmd="/usr/local/opnsense/scripts/netbird/carp_guard.php"
-{% endif %}
-{% else %}
+# The netbird port's own rc.d script only supports a single instance.
+# This plugin drives every configured instance through its own
+# os-netbird rc.d script instead (see the osnetbird template), so the
+# port's script is always kept disabled here.
 netbird_enable="NO"
-{% endif %}
