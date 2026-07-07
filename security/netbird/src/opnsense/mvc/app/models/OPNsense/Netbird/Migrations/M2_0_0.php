@@ -83,5 +83,39 @@ class M2_0_0 extends BaseModelMigration
         // The old //OPNsense/netbird/authentication tree is left in place
         // (harmless, unused stale data) since the Authentication model
         // that owned it no longer exists to clean it up itself.
+
+        // A pre-2.0.0 install may still have its single-instance daemon
+        // running under the port's own rc script at this point. It has to
+        // be stopped before the migrated instance's daemon can bind the
+        // same tunnel interface and WireGuard port under os-netbird --
+        // otherwise the old process keeps squatting on both, the new
+        // per-instance daemon never actually starts, and everything
+        // (GUI, "configctl netbird status-json <uuid>") ends up querying a
+        // socket nothing is listening on while the orphaned old process
+        // keeps answering on the default one. Use "onestop" rather than
+        // "stop": rc.subr refuses a plain stop once netbird_enable is NO,
+        // which our own rc.conf.d template always sets, and onestop is the
+        // documented way to act on a disabled service regardless. Use a
+        // plain shell_exec here rather than util.inc's mwexecf(), since
+        // migrations can run in a context where util.inc has not been
+        // loaded.
+        if (is_file('/usr/local/etc/rc.d/netbird')) {
+            @shell_exec('/usr/local/etc/rc.d/netbird onestop > /dev/null 2>&1');
+        }
+
+        // Move NetBird's own state file -- WireGuard keys, management
+        // registration, etc. -- from the old single-instance path to this
+        // instance's new per-instance path, so the migrated instance keeps
+        // its existing identity/peer registration instead of NetBird
+        // treating it as a brand new, unregistered client on next start.
+        $legacy_config = '/var/db/netbird/config.json';
+        $instance_config = \OPNsense\Netbird\Settings::configPath($node->getAttributes()['uuid']);
+        if (is_file($legacy_config) && !is_file($instance_config)) {
+            $instance_dir = dirname($instance_config);
+            if (!is_dir($instance_dir)) {
+                @mkdir($instance_dir, 0750, true);
+            }
+            @rename($legacy_config, $instance_config);
+        }
     }
 }
