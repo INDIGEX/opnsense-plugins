@@ -47,6 +47,8 @@
                 },
             },
         });
+
+        updateServiceControlUI('netbird');
     });
 </script>
 

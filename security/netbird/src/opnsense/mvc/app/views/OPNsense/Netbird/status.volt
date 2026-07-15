@@ -326,6 +326,7 @@
 
         loadInstances();
         loadVersionData();
+        updateServiceControlUI('netbird');
     });
 </script>
 <section class="page-content-main">
