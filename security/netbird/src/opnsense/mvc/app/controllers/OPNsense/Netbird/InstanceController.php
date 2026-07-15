@@ -39,7 +39,6 @@ class InstanceController extends IndexController
     public function indexAction()
     {
         $this->view->formDialogInstance = $this->getForm('dialogInstance');
-        $this->view->formGridInstance = $this->getFormGrid('dialogInstance');
         $this->view->pick('OPNsense/Netbird/instance');
     }
 }

@@ -26,19 +26,58 @@
 
 <script>
     $(document).ready(() => {
-        $("#{{formGridInstance['table_id']}}").UIBootgrid({
+        $("#grid-instance").UIBootgrid({
             search: '/api/netbird/instance/search_instance/',
             get: '/api/netbird/instance/get_instance/',
             set: '/api/netbird/instance/set_instance/',
             add: '/api/netbird/instance/add_instance/',
             del: '/api/netbird/instance/del_instance/',
             toggle: '/api/netbird/instance/toggle_instance/',
+            options: {
+                formatters: {
+                    status: (column, row) => {
+                        const map = {
+                            0: {cls: 'text-success', title: '{{ lang._("Enabled and running") }}'},
+                            2: {cls: 'text-warning', title: '{{ lang._("Enabled, not running") }}'},
+                            5: {cls: 'text-danger', title: '{{ lang._("Disabled") }}'},
+                        };
+                        const s = map[row.status] || {cls: 'text-muted', title: '{{ lang._("Unknown") }}'};
+                        return `<span class="fa fa-circle ${s.cls} bootgrid-tooltip" title="${s.title}"></span>`;
+                    },
+                },
+            },
         });
     });
 </script>
 
 <div class="content-box">
-    {{ partial('layout_partials/base_bootgrid_table', formGridInstance) }}
+    <table id="grid-instance" class="table table-condensed table-hover table-striped table-responsive" data-editDialog="DialogInstance">
+        <thead>
+            <tr>
+                <th data-column-id="status" data-type="string" data-formatter="status" data-sortable="false" data-width="30">{{ lang._('Status') }}</th>
+                <th data-column-id="enabled" data-type="string" data-formatter="rowtoggle">{{ lang._('Enabled') }}</th>
+                <th data-column-id="name" data-type="string">{{ lang._('Name') }}</th>
+                <th data-column-id="wireguardInterface" data-type="string">{{ lang._('WireGuard Interface') }}</th>
+                <th data-column-id="wireguardPort" data-type="string">{{ lang._('Port') }}</th>
+                <th data-column-id="uuid" data-identifier="true" data-visible="false">{{ lang._('ID') }}</th>
+                <th data-column-id="commands" data-formatter="commands" data-sortable="false">{{ lang._('Commands') }}</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+            <tr>
+                <td/>
+                <td>
+                    <button data-action="add" type="button" class="btn btn-xs btn-primary">
+                        <span class="fa fa-plus fa-fw"></span>
+                    </button>
+                    <button data-action="deleteSelected" type="button" class="btn btn-xs btn-default">
+                        <span class="fa fa-trash-o fa-fw"></span>
+                    </button>
+                </td>
+            </tr>
+        </tfoot>
+    </table>
 </div>
 
-{{ partial('layout_partials/base_dialog', ['fields': formDialogInstance, 'id': formGridInstance['edit_dialog_id'], 'label': lang._('Edit Instance')]) }}
+{{ partial('layout_partials/base_dialog', ['fields': formDialogInstance, 'id': 'DialogInstance', 'label': lang._('Edit Instance')]) }}

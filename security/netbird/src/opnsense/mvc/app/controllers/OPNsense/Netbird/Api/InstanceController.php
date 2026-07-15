@@ -39,9 +39,15 @@ class InstanceController extends ApiMutableModelControllerBase
     protected static $internalModelName = 'settings';
     protected static $internalModelClass = '\OPNsense\Netbird\Settings';
 
+    /**
+     * List instances for the grid. "status" is a computed, non-model field
+     * the grid renders as an icon: 0 = enabled and running (green), 2 =
+     * enabled but not running (yellow), 5 = disabled (red).
+     * @return array
+     */
     public function searchInstanceAction()
     {
-        $response = $this->searchBase('instance');
+        $response = $this->searchBase('instance', ['enabled', 'name', 'wireguardInterface', 'wireguardPort']);
 
         $svc = new ServiceController();
         foreach ($response['rows'] as &$row) {

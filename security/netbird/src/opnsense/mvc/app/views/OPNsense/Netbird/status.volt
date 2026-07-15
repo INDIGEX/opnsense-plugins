@@ -210,6 +210,15 @@
                     .addClass(isConnected ? 'label-success' : 'label-warning')
                     .text(isConnected ? '{{ lang._("Connected") }}' : '{{ lang._("Disconnected") }}');
 
+                const peerCount = `${data.peers?.connected || 0}/${data.peers?.total || 0}`;
+                const netbirdIp = data.netbirdIp || '-';
+                const fqdn = data.fqdn || '-';
+                $(`#nb-summary-${uuid}`).html(
+                    `{{ lang._('FQDN') }}: ${fqdn} &nbsp;|&nbsp; ` +
+                    `{{ lang._('NetBird IP') }}: ${netbirdIp} &nbsp;|&nbsp; ` +
+                    `{{ lang._('Peers') }}: ${peerCount}`
+                );
+
                 $(`#nb-connect-${uuid}`).toggleClass('hidden', isConnected);
                 $(`#nb-disconnect-${uuid}`).toggleClass('hidden', !isConnected);
 
@@ -232,7 +241,7 @@
                     return;
                 }
 
-                instances.forEach((inst, idx) => {
+                instances.forEach((inst) => {
                     const collapseId = `nb-collapse-${inst.uuid}`;
                     const panel = `
                         <div class="panel panel-default">
@@ -242,10 +251,12 @@
                                         ${inst.name} &nbsp;
                                         <span id="nb-badge-${inst.uuid}" class="label label-default">{{ lang._('Unknown') }}</span>
                                         ${inst.enabled ? '' : ' <span class="label label-default">{{ lang._("Disabled") }}</span>'}
+                                        &nbsp;
+                                        <span id="nb-summary-${inst.uuid}" class="text-muted" style="font-size: 0.85em;"></span>
                                     </a>
                                 </h4>
                             </div>
-                            <div id="${collapseId}" class="panel-collapse collapse${idx === 0 ? ' in' : ''}" role="tabpanel">
+                            <div id="${collapseId}" class="panel-collapse collapse" role="tabpanel">
                                 <div class="panel-body">
                                     <button class="btn btn-primary btn-xs hidden" id="nb-connect-${inst.uuid}">{{ lang._('Connect') }}</button>
                                     <button class="btn btn-default btn-xs hidden" id="nb-disconnect-${inst.uuid}">{{ lang._('Disconnect') }}</button>
