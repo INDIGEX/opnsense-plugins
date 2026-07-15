@@ -258,8 +258,8 @@
                             </div>
                             <div id="${collapseId}" class="panel-collapse collapse" role="tabpanel">
                                 <div class="panel-body">
-                                    <button class="btn btn-primary btn-xs hidden" id="nb-connect-${inst.uuid}">{{ lang._('Connect') }}</button>
-                                    <button class="btn btn-default btn-xs hidden" id="nb-disconnect-${inst.uuid}">{{ lang._('Disconnect') }}</button>
+                                    <button class="btn btn-primary btn-xs" id="nb-connect-${inst.uuid}" data-label="{{ lang._('Connect') }}"></button>
+                                    <button class="btn btn-default btn-xs" id="nb-disconnect-${inst.uuid}" data-label="{{ lang._('Disconnect') }}"></button>
                                     <br><br>
                                     <h2>{{ lang._('Connection Status') }}</h2>
                                     <div class="table-responsive" id="nb-connstatus-${inst.uuid}"></div>
@@ -273,17 +273,21 @@
                     `;
                     $panels.append(panel);
 
+                    // SimpleActionButton() renders its own label from data-label
+                    // and owns the button's inner HTML, so "hidden" is applied
+                    // after init rather than baked into the template above --
+                    // otherwise it lays out (and measures) a zero-width button.
                     $(`#nb-connect-${inst.uuid}`).SimpleActionButton({
                         onAction: () => {
                             loadInstanceStatus(inst.uuid);
                         }
-                    }).attr('data-endpoint', `/api/netbird/service/connect/${inst.uuid}`);
+                    }).attr('data-endpoint', `/api/netbird/service/connect/${inst.uuid}`).addClass('hidden');
 
                     $(`#nb-disconnect-${inst.uuid}`).SimpleActionButton({
                         onAction: () => {
                             loadInstanceStatus(inst.uuid);
                         }
-                    }).attr('data-endpoint', `/api/netbird/service/disconnect/${inst.uuid}`);
+                    }).attr('data-endpoint', `/api/netbird/service/disconnect/${inst.uuid}`).addClass('hidden');
 
                     loadInstanceStatus(inst.uuid);
                 });
@@ -329,6 +333,23 @@
         updateServiceControlUI('netbird');
     });
 </script>
+<style>
+    /* Bootstrap's white label text is unreadable on the theme's yellow
+       warning background; darken just this badge rather than overriding
+       .label-warning globally. */
+    #instanceAccordion span[id^="nb-badge-"].label-warning {
+        color: #333;
+    }
+
+    /* These buttons inherit a "ghost button" resting style (transparent
+       fill, white text) meant for a colored toolbar, leaving white-on-white
+       here. Pin a visible resting style; hover/focus stay theme-controlled. */
+    #instanceAccordion .panel-body button.btn-default {
+        background-color: #f5f5f5;
+        color: #333;
+        border-color: #ccc;
+    }
+</style>
 <section class="page-content-main">
     <div class="content-box">
         <div class="panel-group" id="instanceAccordion" role="tablist" aria-multiselectable="true"></div>

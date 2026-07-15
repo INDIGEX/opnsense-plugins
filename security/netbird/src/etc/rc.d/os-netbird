@@ -63,6 +63,9 @@ stop_postcmd="osnetbird_stop_postcmd"
 osnetbird_start_precmd()
 {
 	logger -s -t netbird "Starting ${name} instance ${id}."
+	# A brand new instance has no /var/db/netbird/<uuid> directory yet, and
+	# NetBird only bootstraps config.json into it if it already exists.
+	/bin/mkdir -p "$(/usr/bin/dirname "${osnetbird_config}")"
 	/usr/local/sbin/pluginctl -c netbird_sync_config
 	# Check for orphaned tunnel interface and destroy it
 	if /sbin/ifconfig ${osnetbird_tundev} >/dev/null 2>&1; then
