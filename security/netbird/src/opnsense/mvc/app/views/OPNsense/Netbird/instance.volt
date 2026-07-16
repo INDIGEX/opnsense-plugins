@@ -35,6 +35,12 @@
             toggle: '/api/netbird/instance/toggle_instance/',
         });
 
+        $("#reconfigureAct").SimpleActionButton({
+            onAction: () => {
+                updateServiceControlUI('netbird');
+            }
+        });
+
         updateServiceControlUI('netbird');
     });
 </script>
@@ -72,5 +78,7 @@
         </table>
     </div>
 </div>
+
+{{ partial('layout_partials/base_apply_button', {'data_endpoint': '/api/netbird/service/apply_instances', 'data_service_widget': 'netbird'}) }}
 
 {{ partial('layout_partials/base_dialog', ['fields': formDialogInstance, 'id': 'DialogInstance', 'label': lang._('Edit Instance')]) }}

@@ -146,6 +146,42 @@ class ServiceController extends ApiMutableServiceControllerBase
     }
 
     /**
+     * Reconcile every configured instance's running state with its
+     * "enabled" flag: start and connect enabled instances, disconnect and
+     * stop disabled ones. Used by the Instances page's Apply button after
+     * adding/editing/toggling instances in the grid.
+     * @return array
+     * @throws \ReflectionException when model can't be instantiated
+     */
+    public function applyInstancesAction()
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed'];
+        }
+
+        $backend = new Backend();
+        $backend->configdRun('template reload OPNsense/Netbird');
+        $backend->configdRun('netbird sync-config');
+
+        foreach ((new Settings())->instance->iterateItems() as $uuid => $node) {
+            $uuid = (string)$uuid;
+            if ((string)$node->enabled === '1') {
+                $backend->configdpRun('netbird start', [$uuid]);
+                $backend->configdpRun('netbird up-setup-key', [
+                    $uuid,
+                    (string)$node->managementUrl,
+                    (string)$node->setupKey,
+                ]);
+            } else {
+                $backend->configdpRun('netbird down', [$uuid]);
+                $backend->configdpRun('netbird stop', [$uuid]);
+            }
+        }
+
+        return ['status' => 'ok'];
+    }
+
+    /**
      * Bring a single instance's tunnel up (netbird up), passing its
      * configured management URL / setup key for first-time connection.
      * @param string $uuid instance uuid
