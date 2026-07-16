@@ -201,7 +201,23 @@
             `;
         };
 
-        function loadInstanceStatus(uuid) {
+        function loadInstanceStatus(uuid, enabled) {
+            // A disabled instance's daemon isn't running -- there is nothing
+            // to connect, and its last-known connection status would be
+            // stale/misleading, so short-circuit instead of querying it.
+            if (!enabled) {
+                $(`#nb-badge-${uuid}`)
+                    .removeClass('label-success label-warning')
+                    .addClass('label-default')
+                    .text('{{ lang._("Disabled") }}');
+                $(`#nb-summary-${uuid}`).html('');
+                $(`#nb-connect-${uuid}`).addClass('hidden');
+                $(`#nb-disconnect-${uuid}`).addClass('hidden');
+                $(`#nb-connstatus-${uuid}`).html(renderPreTable('{{ lang._("Instance is disabled.") }}'));
+                $(`#nb-peers-container-${uuid}`).addClass('hidden');
+                return;
+            }
+
             ajaxGet(`/api/netbird/status/status/${uuid}`, {}, (data) => {
                 const isConnected = data.management?.connected === true;
 
@@ -250,7 +266,6 @@
                                     <a role="button" data-toggle="collapse" data-parent="#instanceAccordion" href="#${collapseId}">
                                         ${inst.name} &nbsp;
                                         <span id="nb-badge-${inst.uuid}" class="label label-default">{{ lang._('Unknown') }}</span>
-                                        ${inst.enabled ? '' : ' <span class="label label-default">{{ lang._("Disabled") }}</span>'}
                                         &nbsp;
                                         <span id="nb-summary-${inst.uuid}" class="text-muted" style="font-size: 0.85em;"></span>
                                     </a>
@@ -279,17 +294,17 @@
                     // otherwise it lays out (and measures) a zero-width button.
                     $(`#nb-connect-${inst.uuid}`).SimpleActionButton({
                         onAction: () => {
-                            loadInstanceStatus(inst.uuid);
+                            loadInstanceStatus(inst.uuid, inst.enabled);
                         }
                     }).attr('data-endpoint', `/api/netbird/service/connect/${inst.uuid}`).addClass('hidden');
 
                     $(`#nb-disconnect-${inst.uuid}`).SimpleActionButton({
                         onAction: () => {
-                            loadInstanceStatus(inst.uuid);
+                            loadInstanceStatus(inst.uuid, inst.enabled);
                         }
                     }).attr('data-endpoint', `/api/netbird/service/disconnect/${inst.uuid}`).addClass('hidden');
 
-                    loadInstanceStatus(inst.uuid);
+                    loadInstanceStatus(inst.uuid, inst.enabled);
                 });
             });
         }
