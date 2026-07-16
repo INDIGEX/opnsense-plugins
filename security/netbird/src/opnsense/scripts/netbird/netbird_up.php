@@ -40,8 +40,9 @@
  *   4. Runs `/usr/local/bin/netbird up` against this instance's daemon
  *      socket, with any arguments passed through by configd
  *      (e.g. -m <url> -k <key>).
- *   5. If NetBird was not already connected, waits for the tunnel interface
- *      and reloads the packet filter via netbird_sync_filter().
+ *   5. If NetBird was not already connected, backgrounds waiting for the
+ *      tunnel interface and reloading the packet filter (via
+ *      netbird_sync_filter.php) rather than blocking on it here.
  *
  * All configd actions that invoke "netbird up" should point here so that
  * filter reloads happen regardless of the caller (API, CARP, CLI).
@@ -86,9 +87,12 @@ mwexecfm($cmd);
 
 // Only reload when transitioning from disconnected -> connected.  If NetBird
 // was already up, the interface already exists and the filter already knows
-// about it.
+// about it.  Backgrounded: waiting for the interface (up to 15s, longer for
+// a brand new instance's first-time registration) would otherwise block
+// every caller of "netbird up" -- including the GUI's Connect/Apply buttons
+// -- for that long even though the tunnel itself is already coming up.
 if (!$was_connected) {
-    netbird_sync_filter($iface);
+    mwexecfb('/usr/local/opnsense/scripts/netbird/netbird_sync_filter.php ' . escapeshellarg($iface));
 }
 
 exit(0);
