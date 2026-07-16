@@ -29,6 +29,7 @@
 namespace OPNsense\Netbird\Api;
 
 use OPNsense\Base\ApiMutableModelControllerBase;
+use OPNsense\Core\Backend;
 
 /**
  * Grid CRUD for NetBird instances.
@@ -51,21 +52,41 @@ class InstanceController extends ApiMutableModelControllerBase
 
     public function addInstanceAction()
     {
-        return $this->addBase('instance', 'instance');
+        $result = $this->addBase('instance', 'instance');
+        $this->reloadTemplate();
+        return $result;
     }
 
     public function setInstanceAction($uuid)
     {
-        return $this->setBase('instance', 'instance', $uuid);
+        $result = $this->setBase('instance', 'instance', $uuid);
+        $this->reloadTemplate();
+        return $result;
     }
 
     public function delInstanceAction($uuid)
     {
-        return $this->delBase('instance', $uuid);
+        $result = $this->delBase('instance', $uuid);
+        $this->reloadTemplate();
+        return $result;
     }
 
     public function toggleInstanceAction($uuid, $enabled = null)
     {
-        return $this->toggleBase('instance', $uuid, $enabled);
+        $result = $this->toggleBase('instance', $uuid, $enabled);
+        $this->reloadTemplate();
+        return $result;
+    }
+
+    /**
+     * Regenerate /etc/rc.conf.d/osnetbird from the current model so the
+     * "start every configured instance" rc.d dispatch (used by the generic,
+     * no-instance-id service actions) reflects each instance's current
+     * enabled state immediately, rather than whatever was enabled the last
+     * time this template happened to be regenerated.
+     */
+    private function reloadTemplate()
+    {
+        (new Backend())->configdRun('template reload OPNsense/Netbird');
     }
 }
