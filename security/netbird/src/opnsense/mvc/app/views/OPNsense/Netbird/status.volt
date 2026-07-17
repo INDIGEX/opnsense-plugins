@@ -302,7 +302,6 @@
                     .removeClass('label-success label-warning')
                     .addClass('label-default')
                     .text('{{ lang._("Disabled") }}');
-                $(`#nb-summary-${uuid}`).html('');
                 $(`#nb-connect-${uuid}`).addClass('hidden');
                 $(`#nb-disconnect-${uuid}`).addClass('hidden');
                 $(`#nb-connstatus-${uuid}`).html(renderPreTable('{{ lang._("Instance is disabled.") }}'));
@@ -317,15 +316,6 @@
                     .removeClass('label-default label-success label-warning')
                     .addClass(isConnected ? 'label-success' : 'label-warning')
                     .text(isConnected ? '{{ lang._("Connected") }}' : '{{ lang._("Disconnected") }}');
-
-                const peerCount = `${data.peers?.connected || 0}/${data.peers?.total || 0}`;
-                const netbirdIp = data.netbirdIp || '-';
-                const fqdn = data.fqdn || '-';
-                $(`#nb-summary-${uuid}`).html(
-                    `{{ lang._('FQDN') }}: ${fqdn} &nbsp;|&nbsp; ` +
-                    `{{ lang._('NetBird IP') }}: ${netbirdIp} &nbsp;|&nbsp; ` +
-                    `{{ lang._('Peers') }}: ${peerCount}`
-                );
 
                 $(`#nb-connect-${uuid}`).toggleClass('hidden', isConnected);
                 $(`#nb-disconnect-${uuid}`).toggleClass('hidden', !isConnected);
@@ -356,10 +346,9 @@
                             <div class="panel-heading" role="tab">
                                 <h4 class="panel-title">
                                     <a role="button" data-toggle="collapse" data-parent="#instanceAccordion" href="#${collapseId}">
-                                        ${inst.name} &nbsp;
+                                        <span class="fa fa-fw nb-toggle-icon"></span>
                                         <span id="nb-badge-${inst.uuid}" class="label label-default">{{ lang._('Unknown') }}</span>
-                                        &nbsp;
-                                        <span id="nb-summary-${inst.uuid}" class="text-muted" style="font-size: 0.85em;"></span>
+                                        &nbsp;${inst.name}
                                     </a>
                                 </h4>
                             </div>
@@ -456,6 +445,17 @@
         background-color: #f5f5f5;
         color: #333;
         border-color: #ccc;
+    }
+
+    /* Bootstrap's collapse plugin toggles ".collapsed" on the trigger link
+       itself, so the chevron direction can follow it with pure CSS. */
+    #instanceAccordion .panel-title a .nb-toggle-icon:before {
+        font-family: FontAwesome;
+        content: "\f078";
+    }
+
+    #instanceAccordion .panel-title a.collapsed .nb-toggle-icon:before {
+        content: "\f054";
     }
 </style>
 <ul class="nav nav-tabs" data-tabs="tabs" id="maintabs">
