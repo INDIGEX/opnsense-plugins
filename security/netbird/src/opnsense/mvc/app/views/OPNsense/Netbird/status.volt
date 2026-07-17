@@ -209,22 +209,32 @@
                 options: {
                     selection: false,
                     formatters: {
-                        fqdn: (column, row) => row.fqdn || '-',
+                        fqdn: (column, row) => row.fqdn ? escapeHtml(row.fqdn) : '-',
                         netbirdIp: (column, row) => row.netbirdIp || '-',
-                        peers: (column, row) => {
+                        connection: (column, row) => {
+                            if (row.isPeer) {
+                                const type = row.connectionType ? escapeHtml(row.connectionType) : '-';
+                                const latency = typeof row.latency === 'number' ?
+                                    `${(row.latency / 1_000_000).toFixed(2)} ms` : '-';
+                                return `${type} ${latency}`;
+                            }
                             if (row.peersTotal === null || row.peersTotal === undefined) {
                                 return '-';
                             }
-                            const names = row.connectedPeerNames || [];
-                            const title = names.length ? escapeHtml(names.join(', ')) : '{{ lang._("No connected peers") }}';
-                            return `<span data-toggle="tooltip" title="${title}">${row.peersConnected ?? 0}/${row.peersTotal}</span>`;
+                            return `${row.peersConnected ?? 0}/${row.peersTotal} {{ lang._("Peers") }}`;
                         },
                         networks: (column, row) => {
                             const networks = row.networks || [];
+                            if (row.isPeer) {
+                                return networks.length ? escapeHtml(networks.join(', ')) : '-';
+                            }
                             const title = networks.length ? escapeHtml(networks.join(', ')) : '{{ lang._("None") }}';
                             return `<span data-toggle="tooltip" title="${title}">${networks.length}</span>`;
                         },
                         status: (column, row) => {
+                            if (row.isPeer) {
+                                return row.status ? escapeHtml(row.status) : '-';
+                            }
                             const map = {
                                 disabled: {cls: 'label-default', text: '{{ lang._("Disabled") }}'},
                                 stopped: {cls: 'label-danger', text: '{{ lang._("Stopped") }}'},
@@ -238,8 +248,12 @@
                             const s = map[key];
                             return `<span class="label ${s.cls}">${s.text}</span>`;
                         },
+                        bytesSent: (column, row) =>
+                            row.bytesSent === null || row.bytesSent === undefined ? '-' : formatBytes(row.bytesSent),
+                        bytesReceived: (column, row) =>
+                            row.bytesReceived === null || row.bytesReceived === undefined ? '-' : formatBytes(row.bytesReceived),
                         commands: (column, row) => {
-                            if (!row.enabled) {
+                            if (row.isPeer || !row.enabled) {
                                 return '';
                             }
                             if (!row.running) {
@@ -249,7 +263,12 @@
                                 `<button type="button" class="btn btn-xs btn-default nb-command command-stop" data-toggle="tooltip" title="{{ lang._('Stop') }}" data-row-id="${row.uuid}"><span class="fa fa-stop fa-fw"></span></button>`;
                         },
                     },
-                }
+                },
+                tabulatorOptions: {
+                    dataTree: true,
+                    dataTreeChildField: 'children',
+                    dataTreeElementColumn: 'name',
+                },
             });
 
             // Command buttons are re-rendered on every grid load, so (re)bind
@@ -452,9 +471,11 @@
                     <th data-column-id="name" data-type="string">{{ lang._('Instance Name') }}</th>
                     <th data-column-id="fqdn" data-type="string" data-formatter="fqdn">{{ lang._('NetBird Name') }}</th>
                     <th data-column-id="netbirdIp" data-type="string" data-formatter="netbirdIp">{{ lang._('NetBird IP') }}</th>
-                    <th data-column-id="peersTotal" data-type="string" data-formatter="peers" data-sortable="false">{{ lang._('Peers') }}</th>
+                    <th data-column-id="connection" data-type="string" data-formatter="connection" data-sortable="false">{{ lang._('Connection') }}</th>
                     <th data-column-id="networks" data-type="string" data-formatter="networks" data-sortable="false">{{ lang._('Networks') }}</th>
                     <th data-column-id="status" data-type="string" data-formatter="status" data-sortable="false">{{ lang._('Status') }}</th>
+                    <th data-column-id="bytesSent" data-type="string" data-formatter="bytesSent" data-sortable="false">{{ lang._('Bytes Sent') }}</th>
+                    <th data-column-id="bytesReceived" data-type="string" data-formatter="bytesReceived" data-sortable="false">{{ lang._('Bytes Received') }}</th>
                     <th data-column-id="commands" data-type="string" data-formatter="commands" data-sortable="false" data-width="6em"></th>
                 </tr>
             </thead>

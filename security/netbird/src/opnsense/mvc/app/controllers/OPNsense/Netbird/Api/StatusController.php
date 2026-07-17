@@ -94,11 +94,14 @@ class StatusController extends ApiMutableModelControllerBase
                 'netbirdIp' => null,
                 'peersTotal' => null,
                 'peersConnected' => null,
-                'connectedPeerNames' => [],
                 'networks' => [],
+                'bytesSent' => null,
+                'bytesReceived' => null,
                 'enabled' => $enabled,
                 'running' => false,
                 'connected' => false,
+                'isPeer' => false,
+                'children' => [],
             ];
 
             if ($enabled) {
@@ -116,15 +119,52 @@ class StatusController extends ApiMutableModelControllerBase
                     // reached *through* other peers only appear per-peer, so
                     // fold in every connected peer's networks as well.
                     $networks = $status['networks'] ?? [];
-                    foreach ($status['peers']['details'] ?? [] as $peer) {
-                        if (strcasecmp((string)($peer['status'] ?? ''), 'connected') === 0) {
-                            $record['connectedPeerNames'][] = (string)($peer['fqdn'] ?? $peer['publicKey'] ?? '');
+                    $bytesSent = 0;
+                    $bytesReceived = 0;
+
+                    foreach ($status['peers']['details'] ?? [] as $index => $peer) {
+                        $peerStatus = (string)($peer['status'] ?? '');
+                        $peerBytesSent = (int)($peer['transferSent'] ?? 0);
+                        $peerBytesReceived = (int)($peer['transferReceived'] ?? 0);
+
+                        if (strcasecmp($peerStatus, 'connected') === 0) {
                             foreach ($peer['networks'] ?? [] as $network) {
                                 $networks[] = $network;
                             }
+                            $bytesSent += $peerBytesSent;
+                            $bytesReceived += $peerBytesReceived;
                         }
+
+                        $record['children'][] = [
+                            'uuid' => $uuid . '-peer-' . ((string)($peer['publicKey'] ?? $index)),
+                            'name' => '',
+                            'fqdn' => (string)($peer['fqdn'] ?? ''),
+                            'netbirdIp' => (string)($peer['netbirdIp'] ?? ''),
+                            'connectionType' => $peer['connectionType'] ?? null,
+                            'latency' => is_numeric($peer['latency'] ?? null) ? $peer['latency'] : null,
+                            'networks' => $peer['networks'] ?? [],
+                            'status' => $peerStatus,
+                            'bytesSent' => $peerBytesSent,
+                            'bytesReceived' => $peerBytesReceived,
+                            'enabled' => false,
+                            'running' => false,
+                            'connected' => false,
+                            'isPeer' => true,
+                        ];
                     }
+
+                    // Connected peers first, then alphabetically by NetBird name.
+                    usort($record['children'], function ($a, $b) {
+                        $aConnected = strcasecmp($a['status'], 'connected') === 0 ? 0 : 1;
+                        $bConnected = strcasecmp($b['status'], 'connected') === 0 ? 0 : 1;
+                        return $aConnected !== $bConnected
+                            ? $aConnected <=> $bConnected
+                            : strnatcasecmp($a['fqdn'], $b['fqdn']);
+                    });
+
                     $record['networks'] = array_values(array_unique($networks));
+                    $record['bytesSent'] = $bytesSent;
+                    $record['bytesReceived'] = $bytesReceived;
                 }
             }
 
