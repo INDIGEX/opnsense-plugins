@@ -213,23 +213,22 @@
                         netbirdIp: (column, row) => row.netbirdIp || '-',
                         connection: (column, row) => {
                             if (row.isPeer) {
-                                const type = row.connectionType ? escapeHtml(row.connectionType) : '-';
+                                const type = row.connectionType ? escapeHtml(row.connectionType) : '{{ lang._("None") }}';
                                 const latency = typeof row.latency === 'number' ?
-                                    `${(row.latency / 1_000_000).toFixed(2)} ms` : '-';
+                                    `${(row.latency / 1_000_000).toFixed(2)} ms` : '{{ lang._("None") }}';
                                 return `${type} ${latency}`;
                             }
                             if (row.peersTotal === null || row.peersTotal === undefined) {
-                                return '-';
+                                return '{{ lang._("None") }}';
                             }
                             return `${row.peersConnected ?? 0}/${row.peersTotal} {{ lang._("Peers") }}`;
                         },
                         networks: (column, row) => {
                             const networks = row.networks || [];
                             if (row.isPeer) {
-                                return networks.length ? escapeHtml(networks.join(', ')) : '-';
+                                return networks.length ? escapeHtml(networks.join(', ')) : '{{ lang._("None") }}';
                             }
-                            const title = networks.length ? escapeHtml(networks.join(', ')) : '{{ lang._("None") }}';
-                            return `<span data-toggle="tooltip" title="${title}">${networks.length}</span>`;
+                            return `${networks.length}`;
                         },
                         status: (column, row) => {
                             if (row.isPeer) {
@@ -457,6 +456,11 @@
     #instanceAccordion .panel-title a.collapsed .nb-toggle-icon:before {
         content: "\f054";
     }
+
+    #instanceAccordion .panel-title a:hover,
+    #instanceAccordion .panel-title a:focus {
+        text-decoration: none;
+    }
 </style>
 <ul class="nav nav-tabs" data-tabs="tabs" id="maintabs">
     <li class="active"><a data-toggle="tab" href="#sessions" id="tab_sessions">{{ lang._('Sessions') }}</a></li>
@@ -469,7 +473,7 @@
                 <tr>
                     <th data-column-id="uuid" data-type="string" data-identifier="true" data-visible="false">{{ lang._('ID') }}</th>
                     <th data-column-id="name" data-type="string">{{ lang._('Instance Name') }}</th>
-                    <th data-column-id="fqdn" data-type="string" data-formatter="fqdn">{{ lang._('NetBird Name') }}</th>
+                    <th data-column-id="fqdn" data-type="string" data-formatter="fqdn">{{ lang._('FQDN') }}</th>
                     <th data-column-id="netbirdIp" data-type="string" data-formatter="netbirdIp">{{ lang._('NetBird IP') }}</th>
                     <th data-column-id="connection" data-type="string" data-formatter="connection" data-sortable="false">{{ lang._('Connection') }}</th>
                     <th data-column-id="networks" data-type="string" data-formatter="networks" data-sortable="false">{{ lang._('Networks') }}</th>
