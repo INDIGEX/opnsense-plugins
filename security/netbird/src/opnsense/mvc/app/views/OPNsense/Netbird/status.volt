@@ -201,6 +201,79 @@
             `;
         };
 
+        const escapeHtml = (str) => $('<div>').text(str).html();
+
+        function initSessionsGrid() {
+            const grid_sessions = $("#grid-sessions").UIBootgrid({
+                search: '/api/netbird/status/search_sessions/',
+                options: {
+                    selection: false,
+                    formatters: {
+                        fqdn: (column, row) => row.fqdn || '-',
+                        netbirdIp: (column, row) => row.netbirdIp || '-',
+                        peers: (column, row) => {
+                            if (row.peersTotal === null || row.peersTotal === undefined) {
+                                return '-';
+                            }
+                            const names = row.connectedPeerNames || [];
+                            const title = names.length ? escapeHtml(names.join(', ')) : '{{ lang._("No connected peers") }}';
+                            return `<span data-toggle="tooltip" title="${title}">${row.peersConnected ?? 0}/${row.peersTotal}</span>`;
+                        },
+                        networks: (column, row) => {
+                            const networks = row.networks || [];
+                            const title = networks.length ? escapeHtml(networks.join(', ')) : '{{ lang._("None") }}';
+                            return `<span data-toggle="tooltip" title="${title}">${networks.length}</span>`;
+                        },
+                        status: (column, row) => {
+                            const map = {
+                                disabled: {cls: 'label-default', text: '{{ lang._("Disabled") }}'},
+                                stopped: {cls: 'label-danger', text: '{{ lang._("Stopped") }}'},
+                                disconnected: {cls: 'label-warning', text: '{{ lang._("Disconnected") }}'},
+                                connected: {cls: 'label-success', text: '{{ lang._("Connected") }}'},
+                            };
+                            let key = 'disabled';
+                            if (row.enabled) {
+                                key = !row.running ? 'stopped' : (row.connected ? 'connected' : 'disconnected');
+                            }
+                            const s = map[key];
+                            return `<span class="label ${s.cls}">${s.text}</span>`;
+                        },
+                        commands: (column, row) => {
+                            if (!row.enabled) {
+                                return '';
+                            }
+                            if (!row.running) {
+                                return `<button type="button" class="btn btn-xs btn-default nb-command command-start" data-toggle="tooltip" title="{{ lang._('Start') }}" data-row-id="${row.uuid}"><span class="fa fa-play fa-fw"></span></button>`;
+                            }
+                            return `<button type="button" class="btn btn-xs btn-default nb-command command-restart" data-toggle="tooltip" title="{{ lang._('Restart') }}" data-row-id="${row.uuid}"><span class="fa fa-repeat fa-fw"></span></button>` +
+                                `<button type="button" class="btn btn-xs btn-default nb-command command-stop" data-toggle="tooltip" title="{{ lang._('Stop') }}" data-row-id="${row.uuid}"><span class="fa fa-stop fa-fw"></span></button>`;
+                        },
+                    },
+                }
+            });
+
+            // Command buttons are re-rendered on every grid load, so (re)bind
+            // the click handler each time rather than once at page load.
+            grid_sessions.on('loaded.rs.jquery.bootgrid', () => {
+                $('.nb-command').click(function () {
+                    const uuid = $(this).data('row-id');
+                    let endpoint = null;
+                    if ($(this).hasClass('command-start')) {
+                        endpoint = `/api/netbird/service/start/${uuid}`;
+                    } else if ($(this).hasClass('command-stop')) {
+                        endpoint = `/api/netbird/service/stop/${uuid}`;
+                    } else if ($(this).hasClass('command-restart')) {
+                        endpoint = `/api/netbird/service/restart/${uuid}`;
+                    }
+                    if (endpoint) {
+                        ajaxCall(endpoint, {}, () => {
+                            $('#grid-sessions').bootgrid('reload');
+                        });
+                    }
+                });
+            });
+        }
+
         function loadInstanceStatus(uuid, enabled) {
             // A disabled instance's daemon isn't running -- there is nothing
             // to connect, and its last-known connection status would be
@@ -345,6 +418,7 @@
 
         loadInstances();
         loadVersionData();
+        initSessionsGrid();
         updateServiceControlUI('netbird');
     });
 </script>
@@ -365,15 +439,34 @@
         border-color: #ccc;
     }
 </style>
-<section class="page-content-main">
-    <div class="content-box">
-        <div class="panel-group" id="instanceAccordion" role="tablist" aria-multiselectable="true"></div>
+<ul class="nav nav-tabs" data-tabs="tabs" id="maintabs">
+    <li class="active"><a data-toggle="tab" href="#sessions" id="tab_sessions">{{ lang._('Sessions') }}</a></li>
+    <li><a data-toggle="tab" href="#detailed" id="tab_detailed">{{ lang._('Detailed') }}</a></li>
+</ul>
+<div class="tab-content content-box">
+    <div id="sessions" class="tab-pane fade in active">
+        <table id="grid-sessions" class="table table-condensed table-hover table-striped table-responsive">
+            <thead>
+                <tr>
+                    <th data-column-id="uuid" data-type="string" data-identifier="true" data-visible="false">{{ lang._('ID') }}</th>
+                    <th data-column-id="name" data-type="string">{{ lang._('Instance Name') }}</th>
+                    <th data-column-id="fqdn" data-type="string" data-formatter="fqdn">{{ lang._('NetBird Name') }}</th>
+                    <th data-column-id="netbirdIp" data-type="string" data-formatter="netbirdIp">{{ lang._('NetBird IP') }}</th>
+                    <th data-column-id="peersTotal" data-type="string" data-formatter="peers" data-sortable="false">{{ lang._('Peers') }}</th>
+                    <th data-column-id="networks" data-type="string" data-formatter="networks" data-sortable="false">{{ lang._('Networks') }}</th>
+                    <th data-column-id="status" data-type="string" data-formatter="status" data-sortable="false">{{ lang._('Status') }}</th>
+                    <th data-column-id="commands" data-type="string" data-formatter="commands" data-sortable="false" data-width="6em"></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
-    <br>
-    <div class="content-box">
+    <div id="detailed" class="tab-pane fade in">
+        <div class="panel-group" id="instanceAccordion" role="tablist" aria-multiselectable="true"></div>
+        <br>
         <div class="col-md-12">
             <h2>{{ lang._('Package Versions') }}</h2>
             <div class="table-responsive" id="packages"></div>
         </div>
     </div>
-</section>
+</div>

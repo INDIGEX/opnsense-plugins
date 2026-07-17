@@ -71,4 +71,66 @@ class StatusController extends ApiMutableModelControllerBase
         }
         return [];
     }
+
+    /**
+     * One row per configured instance for the Status page's Sessions grid.
+     * "running" reflects whether the instance's daemon answered at all
+     * (distinct from "connected", which is whether its tunnel is up) --
+     * a disabled instance is never queried since its daemon isn't running.
+     * @return array
+     */
+    public function searchSessionsAction()
+    {
+        $backend = new Backend();
+        $records = [];
+
+        foreach ((new \OPNsense\Netbird\Settings())->instance->iterateItems() as $uuid => $node) {
+            $uuid = (string)$uuid;
+            $enabled = (string)$node->enabled === '1';
+            $record = [
+                'uuid' => $uuid,
+                'name' => (string)$node->name,
+                'fqdn' => null,
+                'netbirdIp' => null,
+                'peersTotal' => null,
+                'peersConnected' => null,
+                'connectedPeerNames' => [],
+                'networks' => [],
+                'enabled' => $enabled,
+                'running' => false,
+                'connected' => false,
+            ];
+
+            if ($enabled) {
+                $status = json_decode($backend->configdpRun('netbird status-json', [$uuid]), true);
+                if (is_array($status) && !empty($status)) {
+                    $record['running'] = true;
+                    $record['connected'] = ($status['management']['connected'] ?? false) === true;
+                    $record['fqdn'] = $status['fqdn'] ?? null;
+                    $record['netbirdIp'] = $status['netbirdIp'] ?? null;
+                    $record['peersTotal'] = $status['peers']['total'] ?? 0;
+                    $record['peersConnected'] = $status['peers']['connected'] ?? 0;
+
+                    // "networks" on the top-level status is only what this
+                    // instance itself advertises as a routing peer. Networks
+                    // reached *through* other peers only appear per-peer, so
+                    // fold in every connected peer's networks as well.
+                    $networks = $status['networks'] ?? [];
+                    foreach ($status['peers']['details'] ?? [] as $peer) {
+                        if (strcasecmp((string)($peer['status'] ?? ''), 'connected') === 0) {
+                            $record['connectedPeerNames'][] = (string)($peer['fqdn'] ?? $peer['publicKey'] ?? '');
+                            foreach ($peer['networks'] ?? [] as $network) {
+                                $networks[] = $network;
+                            }
+                        }
+                    }
+                    $record['networks'] = array_values(array_unique($networks));
+                }
+            }
+
+            $records[] = $record;
+        }
+
+        return $this->searchRecordsetBase($records);
+    }
 }
