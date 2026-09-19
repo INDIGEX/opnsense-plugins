@@ -36,6 +36,13 @@
         <advanced>true</advanced>
     </field>
     <field>
+        <id>settings.general.peerConnectionInterfaces</id>
+        <label>Peer Connection Interfaces</label>
+        <type>select_multiple</type>
+        <hint>No restriction</hint>
+        <help>Interfaces whose addresses NetBird offers to other peers as direct connection endpoints (ICE host candidates); typically only the WAN interfaces. All other network devices are excluded. A peer running on FreeBSD or OPNsense installs a host route via its default gateway for each endpoint address it is offered, so offering LAN addresses that are also reachable through a routed NetBird network makes exactly those addresses unreachable from the remote site. Leave empty for no restriction. NetBird excludes devices by name prefix: a device whose name is the beginning of a selected device's name (vlan0.10 when vlan0.100 is selected) cannot be excluded and stays offered, which is reported in the system log. A device used in Force IP Mapping must belong to a selected interface, NetBird otherwise ignores that mapping and all mappings after it. The excluded devices are determined when NetBird starts: an interface created afterwards is offered until the next NetBird restart.</help>
+    </field>
+    <field>
         <type>header</type>
         <label>Client Firewall</label>
     </field>
