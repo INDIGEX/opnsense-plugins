@@ -1,7 +1,7 @@
 <model>
     <mount>//OPNsense/quagga/bgp</mount>
     <description>BGP Routing configuration</description>
-    <version>1.1.2</version>
+    <version>1.1.3</version>
     <items>
         <enabled type="BooleanField">
             <Default>0</Default>
@@ -68,6 +68,15 @@
                 <address type="NetworkField">
                     <Required>Y</Required>
                 </address>
+                <family type="OptionField">
+                    <Required>Y</Required>
+                    <Default>ipv4</Default>
+                    <Multiple>Y</Multiple>
+                    <OptionValues>
+                        <ipv4>IPv4</ipv4>
+                        <ipv6>IPv6</ipv6>
+                    </OptionValues>
+                </family>
                 <remote_as_mode type="OptionField">
                     <BlankDesc>Use Remote AS Number</BlankDesc>
                     <OptionValues>
@@ -88,7 +97,17 @@
                     <MinimumValue>0</MinimumValue>
                     <MaximumValue>65535</MaximumValue>
                 </weight>
-                <localip type="NetworkField"/>
+                <localip type="NetworkField">
+                    <Constraints>
+                        <check001>
+                            <ValidationMessage>A value is required when a password is set.</ValidationMessage>
+                            <type>DependConstraint</type>
+                            <addFields>
+                                <field1>password</field1>
+                            </addFields>
+                        </check001>
+                    </Constraints>
+                </localip>
                 <updatesource type="InterfaceField">
                     <AllowDynamic>Y</AllowDynamic>
                     <filters>
@@ -104,7 +123,6 @@
                 <nexthopself type="BooleanField"/>
                 <nexthopselfall type="BooleanField"/>
                 <multihop type="BooleanField"/>
-                <multiprotocol type="BooleanField"/>
                 <rrclient type="BooleanField"/>
                 <soft_reconfiguration_inbound type="BooleanField"/>
                 <bfd type="BooleanField"/>
